@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stencil Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0e0e;--surface:#161616;--surface2:#1e1e1e;
+  --border:#252525;--border2:#303030;
+  --accent:#1a6dff;--accent2:#0d3d8a;
+  --text:#d8d8d8;--dim:#555;--white:#f0f0f0;
+}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;min-height:100vh}
+
+/* ── Header ── */
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:10}
+header h1{font-size:15px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--white)}
+header h1 span{color:var(--accent)}
+.header-right{display:flex;align-items:center;gap:12px}
+#upload-btn{background:var(--accent);color:#fff;border:none;padding:7px 16px;font-family:inherit;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+#upload-btn:hover{background:#2a7fff}
+#file-input{display:none}
+
+/* ── Main ── */
+main{padding:20px 24px;max-width:1600px;margin:0 auto}
+
+/* ── Two-column workspace ── */
+.workspace{display:flex;gap:20px;align-items:flex-start}
+.left-col{flex:1;min-width:0}
+.right-col{width:310px;flex-shrink:0;position:sticky;top:58px;max-height:calc(100vh - 74px);overflow-y:auto;overflow-x:hidden}
+.right-col::-webkit-scrollbar{width:4px}
+.right-col::-webkit-scrollbar-track{background:transparent}
+.right-col::-webkit-scrollbar-thumb{background:var(--border2)}
+
+/* ── Drop zone ── */
+#drop-zone{border:2px dashed var(--border2);padding:56px 24px;text-align:center;color:var(--dim);cursor:pointer;transition:border-color .15s,color .15s;margin-bottom:20px}
+#drop-zone.drag-over{border-color:var(--accent);color:var(--accent)}
+#drop-zone.hidden{display:none}
+#drop-zone p{letter-spacing:.04em}
+#drop-zone .sub{font-size:11px;margin-top:6px;color:var(--dim)}
+
+/* ── Preset bar ── */
+.preset-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.preset-btn{background:transparent;border:1px solid var(--border2);color:var(--dim);padding:6px 14px;font-family:inherit;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .12s}
+.preset-btn:hover{border-color:var(--accent);color:var(--accent)}
+.preset-btn.active{background:var(--accent2);border-color:var(--accent);color:var(--white)}
+
+/* ── Layer previews ── */
+.previews{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.preview-cell{display:flex;flex-direction:column;gap:6px}
+.preview-cell canvas{width:100%;aspect-ratio:1;object-fit:contain;background:#fff;border:1px solid var(--border);display:block;image-rendering:auto;cursor:pointer}
+.preview-cell canvas:hover{border-color:var(--accent)}
+.preview-cell canvas.active-layer{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.preview-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);text-align:center}
+.l1-label{color:#4a9eff}.l2-label{color:#7cb8ff}.l3-label{color:#aed4ff}
+
+/* ── Combined preview ── */
+#combined-section{margin-bottom:20px}
+.combined-header{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+#canvas-combined{width:100%;border:1px solid var(--border);background:#fff;display:block;image-rendering:auto}
+
+/* ── Controls ── */
+.controls{background:var(--surface);border:1px solid var(--border);padding:14px;margin-bottom:12px}
+.ctrl-section-title{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--dim);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+
+/* Histogram */
+#hist-wrap{margin-bottom:16px;position:relative}
+#hist-canvas{display:block;width:100%;height:60px;cursor:crosshair;border:1px solid var(--border)}
+.hist-labels{display:flex;justify-content:space-between;margin-top:3px;font-size:9px;color:var(--dim);letter-spacing:.04em}
+
+/* Slider grid */
+.slider-grid{display:grid;grid-template-columns:1fr;gap:11px;margin-bottom:14px}
+.ctrl-row{display:flex;flex-direction:column;gap:5px}
+.ctrl-row label{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.05em;color:var(--dim)}
+.ctrl-row label b{color:var(--text);font-weight:400}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--border2);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;background:var(--accent);cursor:pointer;border-radius:0}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;background:var(--accent);border:none;cursor:pointer;border-radius:0}
+
+/* Auto button */
+.thresh-row{display:flex;align-items:flex-end;gap:8px}
+.thresh-row .ctrl-row{flex:1}
+.auto-btn{background:transparent;border:1px solid var(--border2);color:var(--dim);padding:4px 10px;font-family:inherit;font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;white-space:nowrap;transition:all .12s;margin-bottom:0}
+.auto-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Toggle row */
+.toggle-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.toggle-group{display:flex;gap:0}
+.toggle-btn{background:transparent;border:1px solid var(--border2);color:var(--dim);padding:5px 12px;font-family:inherit;font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .12s}
+.toggle-btn:first-child{border-right:none}
+.toggle-btn.active{background:var(--accent2);border-color:var(--accent);color:var(--white)}
+.toggle-btn:hover:not(.active){border-color:var(--accent);color:var(--accent)}
+
+/* Checkboxes */
+.check-row{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px}
+.check-row label{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:.05em}
+input[type=checkbox]{accent-color:var(--accent);width:12px;height:12px;cursor:pointer}
+
+/* Size row */
+.size-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.size-row label{font-size:10px;color:var(--dim);letter-spacing:.05em;white-space:nowrap}
+select{background:var(--bg);color:var(--text);border:1px solid var(--border2);padding:5px 8px;font-family:inherit;font-size:11px;cursor:pointer}
+select:focus{outline:1px solid var(--accent)}
+.custom-size{display:none;align-items:center;gap:6px}
+.custom-size.show{display:flex}
+.custom-size input[type=number]{width:58px;background:var(--bg);color:var(--text);border:1px solid var(--border2);padding:4px 7px;font-family:inherit;font-size:11px}
+.custom-size span{font-size:10px;color:var(--dim)}
+
+/* ── Downloads ── */
+.dl-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.dl-btn{background:transparent;color:var(--accent);border:1px solid var(--accent);padding:8px 16px;font-family:inherit;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .12s}
+.dl-btn:hover{background:var(--accent);color:#fff}
+.dl-btn:disabled{opacity:.3;cursor:not-allowed}
+.dl-all{background:var(--accent);color:#fff;border:1px solid var(--accent);padding:8px 20px;font-family:inherit;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.dl-all:hover{background:#2a7fff}
+.dl-all:disabled{opacity:.3;cursor:not-allowed}
+
+/* Status */
+#status{font-size:10px;color:var(--accent);letter-spacing:.06em;min-height:18px}
+
+@media(max-width:900px){
+  .workspace{flex-direction:column}
+  .right-col{width:100%;position:static;max-height:none}
+  .previews{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Stencil <span>Generator</span></h1>
+  <div class="header-right">
+    <button id="upload-btn" onclick="document.getElementById('file-input').click()">Upload Photo</button>
+    <input type="file" id="file-input" accept="image/*">
+  </div>
+</header>
+
+<main>
+  <div id="drop-zone">
+    <p>Drop photo here or click to upload</p>
+    <p class="sub">JPG · PNG · WEBP &nbsp;·&nbsp; Processed entirely in-browser · No data leaves your device</p>
+  </div>
+
+  <div id="preview-section" style="display:none">
+  <div class="workspace">
+
+    <!-- ── LEFT: previews + combined ── -->
+    <div class="left-col">
+
+      <div class="preset-bar">
+        <span style="font-size:10px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;align-self:center;margin-right:4px">Preset</span>
+        <button class="preset-btn active" onclick="applyPreset('Street Art')">Street Art</button>
+        <button class="preset-btn" onclick="applyPreset('Fine Detail')">Fine Detail</button>
+        <button class="preset-btn" onclick="applyPreset('Woodcut')">Woodcut</button>
+      </div>
+
+      <div class="previews">
+        <div class="preview-cell">
+          <canvas id="canvas-orig" title="Original"></canvas>
+          <span class="preview-label">Original</span>
+        </div>
+        <div class="preview-cell">
+          <canvas id="canvas-l1" class="active-layer" title="Layer 1 – Shadow" onclick="toggleLayerIsolate(0)"></canvas>
+          <span class="preview-label l1-label">Layer 1 · Shadow</span>
+        </div>
+        <div class="preview-cell">
+          <canvas id="canvas-l2" title="Layer 2 – Midtone" onclick="toggleLayerIsolate(1)"></canvas>
+          <span class="preview-label l2-label">Layer 2 · Midtone</span>
+        </div>
+        <div class="preview-cell">
+          <canvas id="canvas-l3" title="Layer 3 – Highlight" onclick="toggleLayerIsolate(2)"></canvas>
+          <span class="preview-label l3-label">Layer 3 · Highlight</span>
+        </div>
+      </div>
+
+      <div id="combined-section">
+        <div class="combined-header">Combined Layer Preview</div>
+        <canvas id="canvas-combined"></canvas>
+      </div>
+
+    </div><!-- /left-col -->
+
+    <!-- ── RIGHT: controls ── -->
+    <div class="right-col">
+
+      <div class="controls">
+        <div class="ctrl-section-title">Controls</div>
+
+        <div id="hist-wrap">
+          <canvas id="hist-canvas" height="60"></canvas>
+          <div class="hist-labels"><span>0</span><span>◄ Drag thresholds ►</span><span>255</span></div>
+        </div>
+
+        <div class="slider-grid">
+          <div class="ctrl-row">
+            <label>S-Curve Contrast <b id="v-contrast">8</b></label>
+            <input type="range" id="s-contrast" min="1" max="20" step="0.5" value="8">
+          </div>
+          <div class="ctrl-row">
+            <label>Brightness <b id="v-brightness">0</b></label>
+            <input type="range" id="s-brightness" min="-60" max="60" step="1" value="0">
+          </div>
+          <div class="thresh-row">
+            <div class="ctrl-row">
+              <label>Shadow Threshold <b id="v-tlow">85</b></label>
+              <input type="range" id="s-tlow" min="0" max="255" step="1" value="85">
+            </div>
+          </div>
+          <div class="thresh-row">
+            <div class="ctrl-row">
+              <label>Highlight Threshold <b id="v-thigh">170</b></label>
+              <input type="range" id="s-thigh" min="0" max="255" step="1" value="170">
+            </div>
+            <button class="auto-btn" onclick="runOtsu()">Auto</button>
+          </div>
+          <div class="ctrl-row">
+            <label>Sharpen <b id="v-sharpen">1.0</b></label>
+            <input type="range" id="s-sharpen" min="0" max="4" step="0.1" value="1.0">
+          </div>
+          <div class="ctrl-row">
+            <label>Blur (σ) <b id="v-blur">0.5</b></label>
+            <input type="range" id="s-blur" min="0" max="4" step="0.1" value="0.5">
+          </div>
+          <div class="ctrl-row">
+            <label>Smooth Edges (σ) <b id="v-smooth">0.8</b></label>
+            <input type="range" id="s-smooth" min="0" max="4" step="0.1" value="0.8">
+          </div>
+          <div class="ctrl-row">
+            <label>RDP Simplify ε <b id="v-rdp">1.5</b></label>
+            <input type="range" id="s-rdp" min="0.1" max="6" step="0.1" value="1.5">
+          </div>
+          <div class="ctrl-row">
+            <label>Bridge Width <b id="v-bridge">3</b>px</label>
+            <input type="range" id="s-bridge" min="1" max="12" step="1" value="3">
+          </div>
+          <div class="ctrl-row">
+            <label>Min Island <b id="v-island">60</b>px</label>
+            <input type="range" id="s-island" min="0" max="600" step="10" value="60">
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="t-hard" onclick="setMode('threshold','hard')">Hard</button>
+            <button class="toggle-btn" id="t-dither" onclick="setMode('threshold','dither')">Dither</button>
+          </div>
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="t-vector" onclick="setMode('export','vector')">Vector</button>
+            <button class="toggle-btn" id="t-raster" onclick="setMode('export','raster')">Raster</button>
+          </div>
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="t-1x" onclick="setExportRes(1)">1×</button>
+            <button class="toggle-btn" id="t-2x" onclick="setExportRes(2)">2×</button>
+            <button class="toggle-btn" id="t-full" onclick="setExportRes(0)">Full</button>
+          </div>
+        </div>
+
+        <div class="check-row">
+          <label><input type="checkbox" id="c-bridges" checked> Bridge islands</label>
+          <label><input type="checkbox" id="c-regmarks"> Reg. marks</label>
+          <label><input type="checkbox" id="c-invert"> Invert</label>
+        </div>
+
+        <div class="size-row">
+          <label>Size</label>
+          <select id="s-size">
+            <option value="a3">A3</option>
+            <option value="a4">A4</option>
+            <option value="letter">Letter</option>
+            <option value="custom">Custom…</option>
+          </select>
+          <select id="s-orient">
+            <option>Portrait</option>
+            <option>Landscape</option>
+          </select>
+          <div class="custom-size" id="custom-size">
+            <input type="number" id="s-cw" value="300" min="10" max="2000">
+            <span>×</span>
+            <input type="number" id="s-ch" value="400" min="10" max="2000">
+            <span>mm</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dl-row">
+        <button class="dl-btn" onclick="downloadLayer(0)">↓ L1</button>
+        <button class="dl-btn" onclick="downloadLayer(1)">↓ L2</button>
+        <button class="dl-btn" onclick="downloadLayer(2)">↓ L3</button>
+        <button class="dl-all" onclick="downloadAll()">↓ ZIP</button>
+      </div>
+      <div id="status"></div>
+
+    </div><!-- /right-col -->
+  </div><!-- /workspace -->
+  </div><!-- /preview-section -->
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+const PREVIEW_MAX = 900;
+
+// Marching squares: bit order TL=8 TR=4 BR=2 BL=1
+// Edge labels: N=top, E=right, S=bottom, W=left
+const MS = [
+  [],               // 0
+  [['W','S']],      // 1  BL
+  [['S','E']],      // 2  BR
+  [['W','E']],      // 3  BL+BR
+  [['N','E']],      // 4  TR
+  [['N','E'],['W','S']], // 5 TR+BL saddle
+  [['N','S']],      // 6  TR+BR
+  [['N','W']],      // 7  !TL
+  [['N','W']],      // 8  TL
+  [['N','S']],      // 9  TL+BL
+  [['N','W'],['S','E']], // 10 TL+BR saddle
+  [['N','E']],      // 11 !TR
+  [['W','E']],      // 12 TL+TR
+  [['S','E']],      // 13 !BR
+  [['W','S']],      // 14 !BL
+  [],               // 15
+];
+
+const PRESETS = {
+  'Street Art': { contrast:10, brightness:5,  tlow:75, thigh:155, blur:0.8, sharpen:1.8, smooth:1.0, dither:false },
+  'Fine Detail': { contrast:5,  brightness:0,  tlow:90, thigh:175, blur:0.3, sharpen:2.5, smooth:0.4, dither:true  },
+  'Woodcut':     { contrast:15, brightness:-5, tlow:55, thigh:125, blur:1.5, sharpen:0.5, smooth:1.5, dither:false },
+};
+
+const SIZES = { a3:{w:297,h:420}, a4:{w:210,h:297}, letter:{w:216,h:279} };
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let srcImg = null;
+let layerBitmaps = [null,null,null]; // Uint8Array at preview res
+let previewW = 0, previewH = 0;
+let lumPreview = null; // Float32Array for histogram
+let thresholdMode = 'hard';
+let exportMode = 'vector';
+let exportRes = 1; // 0=full, 1=preview, 2=2x
+let isolatedLayer = -1;
+let debounceTimer = null;
+let histDrag = null;
+
+// ═══════════════════════════════════════════════════════════════
+// DOM
+// ═══════════════════════════════════════════════════════════════
+const dropZone   = document.getElementById('drop-zone');
+const previewSec = document.getElementById('preview-section');
+const statusEl   = document.getElementById('status');
+const histCanvas = document.getElementById('hist-canvas');
+const previewCanvases = ['canvas-orig','canvas-l1','canvas-l2','canvas-l3'].map(id=>document.getElementById(id));
+
+// ═══════════════════════════════════════════════════════════════
+// UPLOAD
+// ═══════════════════════════════════════════════════════════════
+dropZone.addEventListener('click', () => document.getElementById('file-input').click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+document.getElementById('file-input').addEventListener('change', e => loadFile(e.target.files[0]));
+
+function loadFile(f) {
+  if (!f || !f.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      srcImg = img;
+      dropZone.classList.add('hidden');
+      previewSec.style.display = 'block';
+      drawOriginal();
+      processImage();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(f);
+}
+
+function drawOriginal() {
+  const c = previewCanvases[0];
+  const MAX = 400;
+  let w = srcImg.width, h = srcImg.height;
+  if (w > MAX || h > MAX) { const r = Math.min(MAX/w, MAX/h); w=Math.round(w*r); h=Math.round(h*r); }
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(srcImg, 0, 0, w, h);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════════════════════════════
+const SLIDERS = [
+  ['s-contrast','v-contrast'],['s-brightness','v-brightness'],
+  ['s-tlow','v-tlow'],['s-thigh','v-thigh'],
+  ['s-sharpen','v-sharpen'],['s-blur','v-blur'],
+  ['s-smooth','v-smooth'],['s-rdp','v-rdp'],
+  ['s-bridge','v-bridge'],['s-island','v-island'],
+];
+SLIDERS.forEach(([id,vid]) => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    document.getElementById(vid).textContent = el.value;
+    if (id==='s-tlow'||id==='s-thigh') renderHistogram();
+    scheduleProcess();
+  });
+});
+document.getElementById('s-size').addEventListener('change', function(){
+  document.getElementById('custom-size').classList.toggle('show', this.value==='custom');
+});
+['s-orient','s-cw','s-ch','c-bridges','c-regmarks','c-invert'].forEach(id =>
+  document.getElementById(id).addEventListener('change', scheduleProcess));
+
+function scheduleProcess() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(processImage, 90);
+}
+
+function getParams() {
+  const g = id => document.getElementById(id);
+  return {
+    contrast:  parseFloat(g('s-contrast').value),
+    brightness:parseFloat(g('s-brightness').value),
+    tlow:      parseInt(g('s-tlow').value),
+    thigh:     parseInt(g('s-thigh').value),
+    sharpen:   parseFloat(g('s-sharpen').value),
+    blur:      parseFloat(g('s-blur').value),
+    bridge:    parseInt(g('s-bridge').value),
+    island:    parseInt(g('s-island').value),
+    smooth:    parseFloat(g('s-smooth').value),
+    rdpEps:    parseFloat(g('s-rdp').value),
+    bridges:   g('c-bridges').checked,
+    regmarks:  g('c-regmarks').checked,
+    invert:    g('c-invert').checked,
+    dither:    thresholdMode === 'dither',
+  };
+}
+
+function getOutputDims() {
+  const key = document.getElementById('s-size').value;
+  const portrait = document.getElementById('s-orient').value === 'Portrait';
+  let w, h;
+  if (key === 'custom') {
+    w = parseInt(document.getElementById('s-cw').value)||300;
+    h = parseInt(document.getElementById('s-ch').value)||400;
+  } else {
+    ({ w, h } = SIZES[key]);
+  }
+  return portrait ? { w:Math.min(w,h), h:Math.max(w,h) } : { w:Math.max(w,h), h:Math.min(w,h) };
+}
+
+function setMode(type, val) {
+  if (type === 'threshold') {
+    thresholdMode = val;
+    document.getElementById('t-hard').classList.toggle('active', val==='hard');
+    document.getElementById('t-dither').classList.toggle('active', val==='dither');
+    scheduleProcess();
+  } else {
+    exportMode = val;
+    document.getElementById('t-vector').classList.toggle('active', val==='vector');
+    document.getElementById('t-raster').classList.toggle('active', val==='raster');
+  }
+}
+
+function setExportRes(r) {
+  exportRes = r;
+  ['1x','2x','full'].forEach((k,i) => {
+    document.getElementById('t-'+k).classList.toggle('active', [1,2,0][i]===r);
+  });
+}
+
+function toggleLayerIsolate(idx) {
+  isolatedLayer = (isolatedLayer === idx) ? -1 : idx;
+  updateLayerHighlights();
+  renderCombinedPreview();
+}
+
+function updateLayerHighlights() {
+  [1,2,3].forEach((ci,li) => {
+    previewCanvases[ci].classList.toggle('active-layer',
+      isolatedLayer === -1 || isolatedLayer === li);
+  });
+}
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    el.value = val;
+    const vid = SLIDERS.find(s=>s[0]===id)?.[1];
+    if (vid) document.getElementById(vid).textContent = val;
+  };
+  set('s-contrast', p.contrast);
+  set('s-brightness', p.brightness);
+  set('s-tlow', p.tlow);
+  set('s-thigh', p.thigh);
+  set('s-blur', p.blur);
+  set('s-sharpen', p.sharpen);
+  set('s-smooth', p.smooth);
+  setMode('threshold', p.dither ? 'dither' : 'hard');
+  document.querySelectorAll('.preset-btn').forEach(b =>
+    b.classList.toggle('active', b.textContent.trim() === name));
+  scheduleProcess();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// IMAGE PROCESSING — BLUR / SHARPEN
+// ═══════════════════════════════════════════════════════════════
+function gaussianKernel(sigma) {
+  const r = Math.max(1, Math.ceil(sigma * 3));
+  const k = [];
+  let s = 0;
+  for (let i = -r; i <= r; i++) { const v = Math.exp(-(i*i)/(2*sigma*sigma)); k.push(v); s += v; }
+  return k.map(v => v/s);
+}
+
+function gaussianBlur(data, w, h, sigma) {
+  if (sigma < 0.1) return;
+  const K = gaussianKernel(sigma);
+  const r = (K.length-1)/2;
+  const tmp = new Float32Array(w*h);
+
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      let v = 0;
+      for (let k = 0; k < K.length; k++) {
+        v += data[y*w + Math.max(0,Math.min(w-1, x+k-r))] * K[k];
+      }
+      tmp[y*w+x] = v;
+    }
+
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      let v = 0;
+      for (let k = 0; k < K.length; k++) {
+        v += tmp[Math.max(0,Math.min(h-1, y+k-r))*w+x] * K[k];
+      }
+      data[y*w+x] = v;
+    }
+}
+
+function unsharpMask(data, w, h, sigma, amount) {
+  if (amount < 0.05) return;
+  const blurred = data.slice();
+  gaussianBlur(blurred, w, h, Math.max(0.5, sigma));
+  for (let i = 0; i < w*h; i++)
+    data[i] = Math.max(0, Math.min(255, data[i] + amount * (data[i] - blurred[i])));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// S-CURVE CONTRAST
+// ═══════════════════════════════════════════════════════════════
+function sCurve(v, k) {
+  // Sigmoid normalized so f(0)=0, f(0.5)=0.5, f(1)=1
+  const lo = 1/(1+Math.exp(k*0.5));
+  const hi = 1/(1+Math.exp(-k*0.5));
+  return (1/(1+Math.exp(-k*(v-0.5))) - lo) / (hi - lo);
+}
+
+function applyTone(data, w, h, contrast, brightness) {
+  for (let i = 0; i < w*h; i++) {
+    let v = sCurve(data[i]/255, contrast) * 255 + brightness;
+    data[i] = Math.max(0, Math.min(255, v));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// THRESHOLDING
+// ═══════════════════════════════════════════════════════════════
+function hardThreshold(lum, w, h, tl, th, inv) {
+  const b = [new Uint8Array(w*h), new Uint8Array(w*h), new Uint8Array(w*h)];
+  for (let i = 0; i < w*h; i++) {
+    const v = inv ? 255-lum[i] : lum[i];
+    if (v < tl)      b[0][i] = 1;
+    else if (v < th) b[1][i] = 1;
+    else             b[2][i] = 1;
+  }
+  return b;
+}
+
+function floydSteinberg(lum, w, h, tl, th, inv) {
+  const b = [new Uint8Array(w*h), new Uint8Array(w*h), new Uint8Array(w*h)];
+  const px = new Float32Array(w*h);
+  for (let i = 0; i < w*h; i++) px[i] = inv ? 255-lum[i] : lum[i];
+
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = y*w+x;
+      const v = Math.max(0, Math.min(255, px[i]));
+      let lvl, target;
+      if (v < tl)      { lvl=0; target=0;   }
+      else if (v < th) { lvl=1; target=128;  }
+      else             { lvl=2; target=255;  }
+      b[lvl][i] = 1;
+      const err = v - target;
+      if (x+1 < w)            px[i+1]   += err*7/16;
+      if (y+1 < h) {
+        if (x > 0)             px[i+w-1] += err*3/16;
+                               px[i+w]   += err*5/16;
+        if (x+1 < w)           px[i+w+1] += err*1/16;
+      }
+    }
+  return b;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OTSU 3-CLASS AUTO-THRESHOLD
+// ═══════════════════════════════════════════════════════════════
+function otsuMultiLevel(lum, w, h) {
+  const hist = new Float64Array(256);
+  for (let i = 0; i < w*h; i++) hist[Math.min(255, Math.round(lum[i]))]++;
+  const total = w*h;
+
+  const psum = new Float64Array(257), wsum = new Float64Array(257);
+  for (let i = 0; i < 256; i++) { psum[i+1]=psum[i]+hist[i]; wsum[i+1]=wsum[i]+i*hist[i]; }
+  const muT = wsum[256]/total;
+
+  let best = -Infinity, bt1 = 85, bt2 = 170;
+  for (let t1 = 5; t1 < 250; t1++) {
+    const n0=psum[t1]; if (!n0) continue;
+    const mu0=wsum[t1]/n0;
+    for (let t2 = t1+10; t2 < 252; t2++) {
+      const n1=psum[t2]-psum[t1]; if (!n1) continue;
+      const n2=total-psum[t2];    if (!n2) continue;
+      const mu1=(wsum[t2]-wsum[t1])/n1;
+      const mu2=(wsum[256]-wsum[t2])/n2;
+      const between = n0*(mu0-muT)**2 + n1*(mu1-muT)**2 + n2*(mu2-muT)**2;
+      if (between > best) { best=between; bt1=t1; bt2=t2; }
+    }
+  }
+  return [bt1, bt2];
+}
+
+function runOtsu() {
+  if (!lumPreview) return;
+  setStatus('Computing optimal thresholds…');
+  setTimeout(() => {
+    const [t1, t2] = otsuMultiLevel(lumPreview, previewW, previewH);
+    document.getElementById('s-tlow').value = t1;
+    document.getElementById('v-tlow').textContent = t1;
+    document.getElementById('s-thigh').value = t2;
+    document.getElementById('v-thigh').textContent = t2;
+    renderHistogram();
+    scheduleProcess();
+    setStatus('');
+  }, 20);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ISLAND REPAIR
+// ═══════════════════════════════════════════════════════════════
+function bfsFill(bitmap, w, h, start, visited) {
+  const comp = []; const q = [start]; visited[start] = 1; let head = 0;
+  while (head < q.length) {
+    const idx = q[head++]; comp.push(idx);
+    const x=idx%w, y=(idx/w)|0;
+    if (x>0   && bitmap[idx-1] && !visited[idx-1]) { visited[idx-1]=1; q.push(idx-1); }
+    if (x<w-1 && bitmap[idx+1] && !visited[idx+1]) { visited[idx+1]=1; q.push(idx+1); }
+    if (y>0   && bitmap[idx-w] && !visited[idx-w]) { visited[idx-w]=1; q.push(idx-w); }
+    if (y<h-1 && bitmap[idx+w] && !visited[idx+w]) { visited[idx+w]=1; q.push(idx+w); }
+  }
+  return comp;
+}
+
+function bresenham(x0,y0,x1,y1,fn) {
+  let dx=Math.abs(x1-x0), dy=Math.abs(y1-y0), sx=x0<x1?1:-1, sy=y0<y1?1:-1, err=dx-dy;
+  for(;;) {
+    fn(x0,y0);
+    if (x0===x1&&y0===y1) break;
+    const e2=2*err;
+    if (e2>-dy){err-=dy;x0+=sx;}
+    if (e2< dx){err+=dx;y0+=sy;}
+  }
+}
+
+function repairIslands(bitmap, w, h, minSize, bw) {
+  const vis = new Uint8Array(w*h);
+  const comps = [];
+  for (let i = 0; i < w*h; i++) if (bitmap[i] && !vis[i]) comps.push(bfsFill(bitmap,w,h,i,vis));
+  if (comps.length <= 1) return;
+
+  comps.sort((a,b) => b.length-a.length);
+  const frameSet = new Set(comps[0]);
+
+  for (let ci = 1; ci < comps.length; ci++) {
+    const comp = comps[ci];
+    if (comp.length >= minSize) continue;
+
+    // Find nearest frame pixel via BFS wavefront from island
+    const visited2 = new Set(comp);
+    let frontier = comp.slice();
+    let found = null;
+
+    outer: while (frontier.length) {
+      const next = [];
+      for (const px of frontier) {
+        const x=px%w, y=(px/w)|0;
+        for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+          const nx=x+dx, ny=y+dy;
+          if (nx<0||nx>=w||ny<0||ny>=h) continue;
+          const ni=ny*w+nx;
+          if (visited2.has(ni)) continue;
+          visited2.add(ni);
+          if (frameSet.has(ni)) { found=[px,ni]; break outer; }
+          next.push(ni);
+        }
+      }
+      frontier = next;
+      if (frontier.length > 80000) break;
+    }
+
+    if (!found) continue;
+    const [ip, fp] = found;
+    const ix=ip%w, iy=(ip/w)|0, fx=fp%w, fy=(fp/w)|0;
+    const half = Math.floor(bw/2);
+    bresenham(ix,iy,fx,fy,(bx,by) => {
+      for (let dy=-half; dy<=half; dy++)
+        for (let dx=-half; dx<=half; dx++) {
+          const nx=bx+dx, ny=by+dy;
+          if (nx>=0&&nx<w&&ny>=0&&ny<h) { const ni=ny*w+nx; bitmap[ni]=1; frameSet.add(ni); }
+        }
+    });
+    for (const px of comp) frameSet.add(px);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ERASE SMALL COMPONENTS — removes isolated blobs below minSize
+// Runs after bridging so large components keep their bridges,
+// but residual noise dots (which bridging doesn't touch) get zeroed.
+// ═══════════════════════════════════════════════════════════════
+function eraseSmallComponents(bitmap, w, h, minSize) {
+  const vis = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    if (!bitmap[i] || vis[i]) continue;
+    const comp = bfsFill(bitmap, w, h, i, vis);
+    if (comp.length < minSize) for (const px of comp) bitmap[px] = 0;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SMOOTH EDGES — blur binary bitmap then re-threshold at 50%
+// Rounds jagged pixel corners without altering threshold zones.
+// ═══════════════════════════════════════════════════════════════
+function smoothBitmap(bitmap, w, h, sigma) {
+  if (sigma < 0.1) return;
+  const f = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) f[i] = bitmap[i] ? 255 : 0;
+  gaussianBlur(f, w, h, sigma);
+  for (let i = 0; i < w * h; i++) bitmap[i] = f[i] >= 128 ? 1 : 0;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MARCHING SQUARES → TRUE VECTOR PATHS
+// ═══════════════════════════════════════════════════════════════
+function edgePt(e, cx, cy) {
+  if (e==='N') return [cx+0.5, cy];
+  if (e==='E') return [cx+1,   cy+0.5];
+  if (e==='S') return [cx+0.5, cy+1];
+               return [cx,     cy+0.5]; // W
+}
+
+function marchingSquares(bitmap, w, h) {
+  const segs = [];
+  for (let cy = 0; cy < h-1; cy++)
+    for (let cx = 0; cx < w-1; cx++) {
+      const TL=bitmap[cy*w+cx], TR=bitmap[cy*w+cx+1];
+      const BR=bitmap[(cy+1)*w+cx+1], BL=bitmap[(cy+1)*w+cx];
+      const idx=(TL<<3)|(TR<<2)|(BR<<1)|BL;
+      for (const [e0,e1] of MS[idx])
+        segs.push([edgePt(e0,cx,cy), edgePt(e1,cx,cy)]);
+    }
+  return chainSegments(segs);
+}
+
+function ptKey(p) { return Math.round(p[0]*2)+','+Math.round(p[1]*2); }
+
+function chainSegments(segs) {
+  if (!segs.length) return [];
+  const adj = new Map();
+  segs.forEach((s,i) => {
+    const k0=ptKey(s[0]), k1=ptKey(s[1]);
+    if (!adj.has(k0)) adj.set(k0,[]);
+    if (!adj.has(k1)) adj.set(k1,[]);
+    adj.get(k0).push(i); adj.get(k1).push(i);
+  });
+  const used = new Uint8Array(segs.length);
+  const rings = [];
+  for (let s0 = 0; s0 < segs.length; s0++) {
+    if (used[s0]) continue;
+    const ring = [segs[s0][0], segs[s0][1]];
+    used[s0] = 1;
+    let tail = segs[s0][1];
+    for (;;) {
+      const k = ptKey(tail);
+      const nexts = adj.get(k)||[];
+      const ni = nexts.find(i => !used[i]);
+      if (ni === undefined) break;
+      used[ni] = 1;
+      const seg = segs[ni];
+      const nextPt = ptKey(seg[0])===k ? seg[1] : seg[0];
+      ring.push(nextPt);
+      tail = nextPt;
+    }
+    if (ring.length >= 4) rings.push(ring);
+  }
+  return rings;
+}
+
+function rdp(pts, eps) {
+  if (pts.length <= 2) return pts;
+  const [ax,ay]=pts[0], [bx,by]=pts[pts.length-1];
+  const dx=bx-ax, dy=by-ay, len2=dx*dx+dy*dy;
+  let maxD=0, maxI=1;
+  for (let i=1;i<pts.length-1;i++) {
+    const [px,py]=pts[i];
+    let d;
+    if (len2===0) {
+      d = Math.hypot(px-ax, py-ay);
+    } else {
+      const t = Math.max(0, Math.min(1, ((px-ax)*dx+(py-ay)*dy)/len2));
+      d = Math.hypot(px-ax-t*dx, py-ay-t*dy);
+    }
+    if (d>maxD){maxD=d;maxI=i;}
+  }
+  if (maxD<=eps) return [pts[0],pts[pts.length-1]];
+  return [...rdp(pts.slice(0,maxI+1),eps).slice(0,-1), ...rdp(pts.slice(maxI),eps)];
+}
+
+function polyArea(pts) {
+  let a=0;
+  for (let i=0;i<pts.length;i++){const j=(i+1)%pts.length;a+=pts[i][0]*pts[j][1]-pts[j][0]*pts[i][1];}
+  return Math.abs(a)/2;
+}
+
+function ringBBox(pts) {
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+  for (const [x,y] of pts) {
+    if(x<x0)x0=x; if(x>x1)x1=x;
+    if(y<y0)y0=y; if(y>y1)y1=y;
+  }
+  return { w:x1-x0, h:y1-y0 };
+}
+
+function bitmapToSVGPath(bitmap, w, h, eps) {
+  const rings = marchingSquares(bitmap, w, h);
+  // Min shape size: anything fitting in a 4×4 pixel box is noise/spike
+  const MIN_DIM  = 4;   // bounding-box min-dimension threshold (pixels)
+  const MIN_AREA = 16;  // pre-simplification area threshold (pixels²)
+  const MIN_POST = 6;   // post-simplification area threshold (pixels²)
+  let d = '';
+  for (const ring of rings) {
+    // 1. Bounding-box filter — catches thin 1-pixel spikes that have non-trivial area
+    const bb = ringBBox(ring);
+    if (bb.w < MIN_DIM && bb.h < MIN_DIM) continue;
+
+    // 2. Area filter before simplification
+    if (polyArea(ring) < MIN_AREA) continue;
+
+    // 3. Simplify
+    const simplified = rdp(ring, eps);
+
+    // 4. Need at least 4 entries (= 3 unique points + closing repeat)
+    if (simplified.length < 4) continue;
+
+    // 5. Area after simplification (RDP can collapse a ring to a spike)
+    if (polyArea(simplified) < MIN_POST) continue;
+
+    d += 'M'+simplified.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L')+' Z ';
+  }
+  return d.trim();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PIPELINE
+// ═══════════════════════════════════════════════════════════════
+function runPipeline(img, maxPx, params) {
+  let w=img.width, h=img.height;
+  if (maxPx > 0 && (w>maxPx||h>maxPx)) { const r=Math.min(maxPx/w,maxPx/h); w=Math.round(w*r); h=Math.round(h*r); }
+
+  const oc = document.createElement('canvas');
+  oc.width=w; oc.height=h;
+  const ctx = oc.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+  const id = ctx.getImageData(0,0,w,h).data;
+
+  const gray = new Float32Array(w*h);
+  for (let i=0;i<w*h;i++) gray[i]=0.299*id[i*4]+0.587*id[i*4+1]+0.114*id[i*4+2];
+
+  if (params.blur > 0.1) gaussianBlur(gray, w, h, params.blur);
+  if (params.sharpen > 0.05) unsharpMask(gray, w, h, 1.2, params.sharpen);
+  applyTone(gray, w, h, params.contrast, params.brightness);
+
+  const bitmaps = params.dither
+    ? floydSteinberg(gray, w, h, params.tlow, params.thigh, params.invert)
+    : hardThreshold(gray, w, h, params.tlow, params.thigh, params.invert);
+
+  if (params.bridges && params.island > 0)
+    for (let li=0; li<3; li++) repairIslands(bitmaps[li], w, h, params.island, params.bridge);
+
+  // Smooth after bridging so bridges get rounded too
+  if (params.smooth > 0.1)
+    for (let li=0; li<3; li++) smoothBitmap(bitmaps[li], w, h, params.smooth);
+
+  // Erase isolated pixel clusters too small to be meaningful shapes
+  // This removes noise dots/spikes before marching squares runs
+  if (params.island > 0)
+    for (let li=0; li<3; li++) eraseSmallComponents(bitmaps[li], w, h, params.island);
+
+  return { bitmaps, w, h, gray };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROCESS & RENDER
+// ═══════════════════════════════════════════════════════════════
+function processImage() {
+  if (!srcImg) return;
+  requestAnimationFrame(() => {
+    try {
+      const p = getParams();
+      const { bitmaps, w, h, gray } = runPipeline(srcImg, PREVIEW_MAX, p);
+      layerBitmaps = bitmaps; previewW=w; previewH=h; lumPreview=gray;
+      for (let li=0;li<3;li++) copyLayerToCanvas(bitmaps[li], w, h, previewCanvases[li+1]);
+      renderHistogram();
+      renderCombinedPreview();
+      setStatus('');
+    } catch(e) { setStatus('Error: '+e.message); console.error(e); }
+  });
+}
+
+function copyLayerToCanvas(bitmap, w, h, canvas) {
+  canvas.width=w; canvas.height=h;
+  const ctx=canvas.getContext('2d');
+  const id=ctx.createImageData(w,h);
+  for (let i=0;i<w*h;i++) { const c=bitmap[i]?0:255; id.data[i*4]=c;id.data[i*4+1]=c;id.data[i*4+2]=c;id.data[i*4+3]=255; }
+  ctx.putImageData(id,0,0);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HISTOGRAM
+// ═══════════════════════════════════════════════════════════════
+function renderHistogram() {
+  if (!lumPreview) return;
+  const W=Math.max(256, histCanvas.parentElement?.offsetWidth||600), H=60;
+  histCanvas.width=W; histCanvas.height=H;
+  const ctx=histCanvas.getContext('2d');
+
+  const hist=new Float32Array(256);
+  for (let i=0;i<previewW*previewH;i++) hist[Math.min(255,Math.round(lumPreview[i]))]++;
+  let maxH=0; for (let i=0;i<256;i++) if(hist[i]>maxH) maxH=hist[i];
+  maxH = maxH || 1;
+
+  const tl=parseInt(document.getElementById('s-tlow').value);
+  const th=parseInt(document.getElementById('s-thigh').value);
+  const xl = Math.round(tl*W/255);
+  const xh = Math.round(th*W/255);
+
+  // Zone backgrounds
+  ctx.fillStyle='rgba(8,20,55,0.95)';  ctx.fillRect(0,0,xl,H);
+  ctx.fillStyle='rgba(15,45,110,0.75)'; ctx.fillRect(xl,0,xh-xl,H);
+  ctx.fillStyle='rgba(30,80,180,0.4)'; ctx.fillRect(xh,0,W-xh,H);
+
+  // Bars (log scale for better visual)
+  for (let i=0;i<256;i++) {
+    const bx=Math.round(i*W/256);
+    const bw=Math.max(1,Math.round(W/256));
+    const bh=Math.round(Math.log1p(hist[i])/Math.log1p(maxH)*H*0.9);
+    ctx.fillStyle=i<tl?'rgba(100,160,255,0.7)':i<th?'rgba(120,190,255,0.6)':'rgba(180,220,255,0.5)';
+    ctx.fillRect(bx, H-bh, bw, bh);
+  }
+
+  // Threshold lines
+  ctx.strokeStyle='#1a6dff'; ctx.lineWidth=1.5;
+  ctx.setLineDash([3,2]);
+  ctx.beginPath(); ctx.moveTo(xl,0); ctx.lineTo(xl,H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(xh,0); ctx.lineTo(xh,H); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Handle triangles
+  [[xl,'#1a6dff'],[xh,'#4a9eff']].forEach(([xp,col]) => {
+    ctx.fillStyle=col;
+    ctx.beginPath(); ctx.moveTo(xp-5,0); ctx.lineTo(xp+5,0); ctx.lineTo(xp,9); ctx.fill();
+  });
+
+  // Zone labels
+  ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.font='9px DM Mono,monospace';
+  if (xl > 30) ctx.fillText('SHADOW',4,H-4);
+  if (xh-xl > 50) ctx.fillText('MIDTONE',xl+4,H-4);
+  if (W-xh > 50) ctx.fillText('HIGHLIGHT',xh+4,H-4);
+}
+
+// Histogram drag
+histCanvas.addEventListener('mousedown', e => {
+  const r=histCanvas.getBoundingClientRect();
+  const mx=(e.clientX-r.left)*(histCanvas.width/r.width);
+  const W=histCanvas.width;
+  const tl=parseInt(document.getElementById('s-tlow').value);
+  const th=parseInt(document.getElementById('s-thigh').value);
+  const xl=tl*W/255, xh=th*W/255;
+  if (Math.abs(mx-xh)<10) histDrag='high';
+  else if (Math.abs(mx-xl)<10) histDrag='low';
+});
+
+window.addEventListener('mousemove', e => {
+  if (!histDrag) return;
+  const r=histCanvas.getBoundingClientRect();
+  const mx=(e.clientX-r.left)*(histCanvas.width/r.width);
+  const val=Math.max(0,Math.min(255,Math.round(mx*255/histCanvas.width)));
+  if (histDrag==='low') {
+    const v=Math.min(val,parseInt(document.getElementById('s-thigh').value)-5);
+    document.getElementById('s-tlow').value=v;
+    document.getElementById('v-tlow').textContent=v;
+  } else {
+    const v=Math.max(val,parseInt(document.getElementById('s-tlow').value)+5);
+    document.getElementById('s-thigh').value=v;
+    document.getElementById('v-thigh').textContent=v;
+  }
+  renderHistogram(); scheduleProcess();
+});
+window.addEventListener('mouseup', () => histDrag=null);
+
+// ═══════════════════════════════════════════════════════════════
+// COMBINED LAYER PREVIEW
+// Layer 1 (shadow) = deep blue, Layer 2 (midtone) = mid blue,
+// Layer 3 (highlight) = near-white background
+// Each layer shown in isolation when isolatedLayer is set.
+// ═══════════════════════════════════════════════════════════════
+function renderCombinedPreview() {
+  if (!layerBitmaps[0]) return;
+  const canvas = document.getElementById('canvas-combined');
+  const w = previewW, h = previewH;
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const id = ctx.createImageData(w, h);
+  const d = id.data;
+  const b0 = layerBitmaps[0], b1 = layerBitmaps[1], b2 = layerBitmaps[2];
+
+  for (let i = 0; i < w * h; i++) {
+    let r, g, b;
+    if (isolatedLayer !== -1) {
+      const on = layerBitmaps[isolatedLayer][i];
+      r = on ? 0 : 255; g = r; b = r;
+    } else {
+      if (b0[i])      { r=20;  g=20;  b=20;  }  // shadow — black
+      else if (b1[i]) { r=110; g=140; b=200; }  // midtone — steel blue
+      else            { r=240; g=240; b=240; }  // highlight — light grey
+    }
+    const p = i * 4; d[p] = r; d[p+1] = g; d[p+2] = b; d[p+3] = 255;
+  }
+  ctx.putImageData(id, 0, 0);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REGISTRATION MARKS
+// ═══════════════════════════════════════════════════════════════
+function svgRegMarks(w, h) {
+  const s=Math.min(w,h)*0.025, m=s*1.5, lw=Math.max(0.5,s*0.08);
+  return [[m,m],[w-m,m],[m,h-m],[w-m,h-m]].map(([cx,cy])=>
+    `<circle cx="${cx}" cy="${cy}" r="${s}" fill="none" stroke="#000" stroke-width="${lw}"/>` +
+    `<line x1="${cx-s*1.6}" y1="${cy}" x2="${cx+s*1.6}" y2="${cy}" stroke="#000" stroke-width="${lw}"/>` +
+    `<line x1="${cx}" y1="${cy-s*1.6}" x2="${cx}" y2="${cy+s*1.6}" stroke="#000" stroke-width="${lw}"/>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SVG EXPORT
+// ═══════════════════════════════════════════════════════════════
+function buildSVG(bitmap, w, h, dimsMM, regmarks, rdpEps, vector) {
+  const marks = regmarks ? svgRegMarks(w,h) : '';
+  if (vector) {
+    const pathD = bitmapToSVGPath(bitmap, w, h, rdpEps);
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${dimsMM.w}mm" height="${dimsMM.h}mm" viewBox="0 0 ${w} ${h}">
+<rect width="${w}" height="${h}" fill="white"/>
+<path d="${pathD}" fill="black" fill-rule="evenodd"/>
+${marks}
+</svg>`;
+  } else {
+    // Raster fallback: render bitmap to canvas, embed as PNG
+    const oc=document.createElement('canvas'); oc.width=w; oc.height=h;
+    const ctx=oc.getContext('2d'); const id=ctx.createImageData(w,h);
+    for (let i=0;i<w*h;i++){const c=bitmap[i]?0:255;id.data[i*4]=c;id.data[i*4+1]=c;id.data[i*4+2]=c;id.data[i*4+3]=255;}
+    ctx.putImageData(id,0,0);
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${dimsMM.w}mm" height="${dimsMM.h}mm" viewBox="0 0 ${w} ${h}">
+<rect width="${w}" height="${h}" fill="white"/>
+<image href="${oc.toDataURL('image/png')}" x="0" y="0" width="${w}" height="${h}"/>
+${marks}
+</svg>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DOWNLOAD
+// ═══════════════════════════════════════════════════════════════
+function getExportMaxPx() {
+  if (exportRes === 0) return 0; // full res
+  if (exportRes === 2) return PREVIEW_MAX * 2;
+  return PREVIEW_MAX;
+}
+
+function downloadLayer(idx) {
+  if (!srcImg) return;
+  setStatus(`Generating Layer ${idx+1} SVG…`);
+  setTimeout(() => {
+    try {
+      const p = getParams();
+      const maxPx = getExportMaxPx();
+      const { bitmaps, w, h } = runPipeline(srcImg, maxPx, p);
+      const dims = getOutputDims();
+      const svg = buildSVG(bitmaps[idx], w, h, dims, p.regmarks, p.rdpEps, exportMode==='vector');
+      triggerDownload(new Blob([svg],{type:'image/svg+xml'}), `stencil-layer-${idx+1}.svg`);
+      setStatus('');
+    } catch(e) { setStatus('Error: '+e.message); console.error(e); }
+  }, 30);
+}
+
+async function downloadAll() {
+  if (!srcImg) return;
+  setStatus('Generating all layers…');
+  setTimeout(async () => {
+    try {
+      const p = getParams();
+      const maxPx = getExportMaxPx();
+      const { bitmaps, w, h } = runPipeline(srcImg, maxPx, p);
+      const dims = getOutputDims();
+      const zip = new JSZip();
+      for (let i=0;i<3;i++)
+        zip.file(`stencil-layer-${i+1}.svg`, buildSVG(bitmaps[i], w, h, dims, p.regmarks, p.rdpEps, exportMode==='vector'));
+      const blob = await zip.generateAsync({type:'blob'});
+      triggerDownload(blob, 'stencil-layers.zip');
+      setStatus('');
+    } catch(e) { setStatus('Error: '+e.message); console.error(e); }
+  }, 30);
+}
+
+function triggerDownload(blob, filename) {
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 15000);
+}
+
+function setStatus(msg) { statusEl.textContent = msg; }
+
+// ── Init histogram canvas width on load ──────────────────────
+window.addEventListener('resize', () => { if (lumPreview) renderHistogram(); });
+</script>
+</body>
+</html>
