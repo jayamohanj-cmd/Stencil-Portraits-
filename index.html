@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spray Paint Portraits — 3-Layer Stencil Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&family=Sometype+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f3efe4;
+    --paper-2:#ece7d8;
+    --ink:#16140f;
+    --ink-soft:#3a362c;
+    --yellow:#f2b517;
+    --red:#d63420;
+    --line:#d8d2c0;
+    --card:#fbf9f2;
+    --good:#2e7d4f;
+    --warn:#d63420;
+    --display:'Saira Stencil One','Arial Black','Impact',sans-serif;
+    --mono:'Sometype Mono',Consolas,'Courier New',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--mono);
+    background:var(--paper);
+    color:var(--ink);
+    min-height:100vh;
+    background-image:
+      radial-gradient(circle at 12% -4%, rgba(242,181,23,.18), transparent 28%),
+      radial-gradient(circle at 96% 8%, rgba(214,52,32,.10), transparent 24%);
+  }
+  /* paper grain */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:1000;opacity:.5;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- header ---------- */
+  header{
+    background:var(--ink);color:var(--paper);
+    padding:26px 32px 22px;position:relative;overflow:hidden;
+    border-bottom:6px solid var(--yellow);
+  }
+  header .splat{position:absolute;pointer-events:none}
+  header h1{
+    font-family:var(--display);font-weight:400;
+    font-size:clamp(26px,4vw,44px);letter-spacing:.04em;line-height:1;
+    text-transform:uppercase;position:relative;z-index:2;
+  }
+  header h1 .y{color:var(--yellow)} header h1 .r{color:#ff5a3c}
+  header p{
+    margin-top:8px;font-size:13px;color:#b9b3a2;max-width:640px;position:relative;z-index:2;
+  }
+  .badge3{
+    position:absolute;right:34px;top:50%;transform:translateY(-50%) rotate(8deg);
+    width:92px;height:92px;border-radius:50%;
+    background:var(--red);color:#fff;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;z-index:2;
+    font-family:var(--display);box-shadow:0 0 0 5px var(--ink),0 0 0 7px var(--paper);
+  }
+  .badge3 b{font-size:38px;font-weight:400;line-height:1}
+  .badge3 span{font-size:10px;letter-spacing:.12em}
+
+  /* ---------- layout ---------- */
+  .app{display:grid;grid-template-columns:300px 1fr;gap:26px;padding:26px 32px 60px;max-width:1500px;margin:0 auto}
+  @media (max-width:980px){.app{grid-template-columns:1fr}}
+
+  /* ---------- panels ---------- */
+  .panel{
+    background:var(--card);border:2px solid var(--ink);
+    box-shadow:5px 5px 0 rgba(22,20,15,.16);
+    padding:16px 16px 18px;margin-bottom:20px;position:relative;
+  }
+  .panel h2{
+    font-family:var(--display);font-weight:400;font-size:15px;letter-spacing:.10em;
+    text-transform:uppercase;border-bottom:2px dashed var(--line);
+    padding-bottom:8px;margin-bottom:14px;display:flex;align-items:center;gap:8px;
+  }
+  .panel h2 .dot{width:11px;height:11px;border-radius:50%;background:var(--yellow);border:2px solid var(--ink);flex:none}
+
+  /* ---------- upload ---------- */
+  .drop{
+    border:2px dashed var(--ink);background:var(--paper-2);
+    padding:18px 12px;text-align:center;cursor:pointer;transition:background .15s,transform .1s;
+  }
+  .drop:hover{background:#e6e0cd}
+  .drop.over{background:#f7e9be;transform:scale(1.015)}
+  .drop strong{font-family:var(--display);font-weight:400;letter-spacing:.06em;font-size:14px;display:block;text-transform:uppercase}
+  .drop span{font-size:11px;color:var(--ink-soft);display:block;margin-top:6px;line-height:1.5}
+  .thumbwrap{display:none;margin-top:12px;text-align:center}
+  .thumbwrap img{max-width:100%;max-height:130px;border:2px solid var(--ink);transform:rotate(-1.2deg);box-shadow:3px 3px 0 rgba(22,20,15,.2)}
+  .thumbwrap button{margin-top:10px}
+
+  /* ---------- sliders ---------- */
+  .ctl{margin-bottom:13px}
+  .ctl label{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;letter-spacing:.04em;margin-bottom:5px;text-transform:uppercase}
+  .ctl label output{font-weight:400;color:var(--ink-soft)}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:6px;background:var(--ink);border-radius:0}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:18px;height:18px;margin-top:-6px;border-radius:50%;
+    background:var(--yellow);border:3px solid var(--ink);box-shadow:2px 2px 0 rgba(22,20,15,.25);
+  }
+  input[type=range]::-moz-range-track{height:6px;background:var(--ink)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--yellow);border:3px solid var(--ink)}
+  .ctl small{display:block;font-size:10px;color:var(--ink-soft);margin-top:2px;line-height:1.45}
+
+  /* ---------- colors ---------- */
+  .colors{display:grid;gap:9px}
+  .crow{display:flex;align-items:center;gap:10px;font-size:11.5px}
+  .crow input[type=color]{
+    -webkit-appearance:none;appearance:none;width:38px;height:30px;padding:0;border:2px solid var(--ink);
+    background:none;cursor:pointer;flex:none;
+  }
+  .crow input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
+  .crow input[type=color]::-webkit-color-swatch{border:none}
+  .crow .cl{font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+  .crow .cs{color:var(--ink-soft);font-size:10px}
+
+  .check{display:flex;align-items:flex-start;gap:9px;font-size:11.5px;cursor:pointer;line-height:1.5}
+  .check input{width:16px;height:16px;accent-color:var(--red);margin-top:1px;flex:none}
+  .subhead{
+    font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);
+    border-top:2px dashed var(--line);margin:16px 0 12px;padding-top:12px;
+  }
+  select{
+    font-family:var(--mono);font-size:11px;border:2px solid var(--ink);background:var(--card);
+    padding:7px 6px;width:100%;cursor:pointer;color:var(--ink);
+  }
+
+  /* ---------- buttons ---------- */
+  .btn{
+    font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    border:2px solid var(--ink);background:var(--card);color:var(--ink);
+    padding:8px 13px;cursor:pointer;box-shadow:3px 3px 0 var(--ink);
+    transition:transform .08s,box-shadow .08s;
+  }
+  .btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+  .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:3px 3px 0 var(--ink)}
+  .btn.primary{background:var(--ink);color:var(--paper)}
+  .btn.accent{background:var(--yellow)}
+  .btn.block{width:100%;text-align:center}
+  .btn + .btn{margin-top:8px}
+
+  /* ---------- main / cards ---------- */
+  .empty{
+    border:2px dashed var(--ink);padding:70px 30px;text-align:center;color:var(--ink-soft);
+    background:var(--paper-2);
+  }
+  .empty h3{font-family:var(--display);font-weight:400;font-size:24px;letter-spacing:.08em;color:var(--ink);text-transform:uppercase;margin-bottom:10px}
+  .empty p{font-size:12.5px;line-height:1.7;max-width:430px;margin:0 auto}
+
+  .stage{display:none}
+  .composite-card{
+    background:var(--card);border:2px solid var(--ink);box-shadow:6px 6px 0 rgba(22,20,15,.16);
+    padding:18px;margin-bottom:28px;position:relative;
+  }
+  .composite-card::before,.composite-card::after,
+  .layer-card::before{
+    content:"";position:absolute;width:84px;height:26px;top:-13px;
+    background:rgba(242,214,128,.85);border:1px solid rgba(160,130,40,.4);
+    transform:rotate(-3deg);box-shadow:0 1px 2px rgba(0,0,0,.12);
+  }
+  .composite-card::before{left:38px}
+  .composite-card::after{right:38px;transform:rotate(4deg)}
+  .card-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+  .card-head h2{font-family:var(--display);font-weight:400;font-size:18px;letter-spacing:.08em;text-transform:uppercase}
+  .card-head .sub{font-size:11px;color:var(--ink-soft)}
+  .composite-card canvas{display:block;width:100%;max-height:560px;object-fit:contain;background:#fff;border:2px solid var(--ink)}
+
+  .layers{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:26px}
+  .layer-card{
+    background:var(--card);border:2px solid var(--ink);box-shadow:6px 6px 0 rgba(22,20,15,.16);
+    padding:16px;position:relative;
+  }
+  .layer-card::before{left:50%;margin-left:-42px;transform:rotate(-2deg)}
+  .layer-card:nth-child(2){transform:rotate(.5deg)}
+  .layer-card:nth-child(1){transform:rotate(-.5deg)}
+  .lc-head{display:flex;align-items:center;gap:11px;margin-bottom:10px}
+  .lc-num{
+    width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+    font-family:var(--display);font-size:21px;color:#fff;border:3px solid var(--ink);
+    box-shadow:2px 2px 0 rgba(22,20,15,.3);
+  }
+  .lc-head h3{font-family:var(--display);font-weight:400;font-size:15px;letter-spacing:.06em;text-transform:uppercase;line-height:1.15}
+  .lc-head small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-soft);letter-spacing:0;text-transform:none;margin-top:2px}
+  .layer-card canvas{display:block;width:100%;background:#fff;border:2px solid var(--ink)}
+  .lc-stats{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:var(--ink-soft);margin:8px 0 4px;min-height:18px}
+  .lc-warn{color:var(--warn);font-weight:700}
+  .lc-ok{color:var(--good)}
+  .lc-btns{display:flex;gap:8px;margin-top:10px}
+  .lc-btns .btn{flex:1;padding:7px 6px;font-size:10.5px;margin:0}
+
+  /* ---------- how-to ---------- */
+  .howto{margin-top:34px;background:var(--ink);color:var(--paper);border:2px solid var(--ink);padding:20px 22px;box-shadow:6px 6px 0 rgba(22,20,15,.16)}
+  .howto h2{font-family:var(--display);font-weight:400;font-size:17px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;color:var(--yellow)}
+  .howto ol{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;counter-reset:step}
+  .howto li{counter-increment:step;font-size:11.5px;line-height:1.6;color:#cfc9b8;padding-left:34px;position:relative}
+  .howto li::before{
+    content:counter(step);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;
+    background:var(--yellow);color:var(--ink);font-family:var(--display);font-size:13px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .howto li b{color:var(--paper)}
+
+  .spin{display:none;position:fixed;right:22px;bottom:22px;z-index:1100;background:var(--ink);color:var(--yellow);
+    font-size:11px;padding:8px 14px;letter-spacing:.08em;text-transform:uppercase}
+  .spin.on{display:block}
+
+  footer{padding:0 32px 40px;max-width:1500px;margin:0 auto;font-size:10.5px;color:var(--ink-soft)}
+
+  /* ---------- print ---------- */
+  #printArea{display:none}
+  @media print{
+    body{background:#fff}
+    body::before{display:none}
+    header,.app,footer,.spin{display:none!important}
+    #printArea{display:block}
+    .ppage{page-break-after:always;display:flex;flex-direction:column;align-items:center;justify-content:center;height:96vh}
+    .ppage:last-child{page-break-after:auto}
+    .ppage img{max-width:100%;max-height:88vh;object-fit:contain}
+    .ppage .cap{font-family:var(--mono);font-size:10px;color:#444;margin-top:6px;letter-spacing:.06em;text-transform:uppercase}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <svg class="splat" style="left:-30px;top:-46px;opacity:.85" width="220" height="220" viewBox="0 0 100 100"><g fill="#f2b517"><circle cx="50" cy="50" r="22"/><circle cx="79" cy="38" r="5"/><circle cx="74" cy="66" r="3.4"/><circle cx="25" cy="33" r="4.2"/><circle cx="20" cy="60" r="2.6"/><circle cx="58" cy="81" r="3"/><circle cx="38" cy="16" r="2.4"/><circle cx="88" cy="55" r="2"/></g></svg>
+  <svg class="splat" style="right:140px;bottom:-60px;opacity:.5" width="190" height="190" viewBox="0 0 100 100"><g fill="#d63420"><circle cx="50" cy="50" r="20"/><circle cx="76" cy="34" r="4"/><circle cx="28" cy="68" r="3.4"/><circle cx="22" cy="36" r="2.6"/><circle cx="64" cy="79" r="2.4"/></g></svg>
+  <h1>Spray <span class="y">Paint</span> Portraits <span class="r">/</span> Stencil Maker</h1>
+  <p>Turn any photo into three cuttable stencil layers — silhouette, mid-tones and details. Adjust the value thresholds, then print, laser-cut or Cricut, and spray.</p>
+  <div class="badge3"><b>×3</b><span>LAYERS</span></div>
+</header>
+
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside>
+    <div class="panel">
+      <h2><span class="dot"></span>Photo</h2>
+      <div class="drop" id="drop" tabindex="0">
+        <strong>Drop a photo here</strong>
+        <span>or click to browse · you can also paste (Ctrl+V)<br>Portraits with a plain background work best</span>
+      </div>
+      <input type="file" id="file" accept="image/*" hidden>
+      <div class="thumbwrap" id="thumbwrap">
+        <img id="thumb" alt="loaded photo">
+        <button class="btn block" id="changeBtn">Change photo</button>
+      </div>
+    </div>
+
+    <div class="panel" id="adjustPanel" style="display:none">
+      <h2><span class="dot"></span>Adjust</h2>
+      <div class="ctl">
+        <label>Brightness <output id="oBright">100%</output></label>
+        <input type="range" id="bright" min="40" max="200" value="100">
+      </div>
+      <div class="ctl">
+        <label>Contrast <output id="oContrast">120%</output></label>
+        <input type="range" id="contrast" min="50" max="300" value="120">
+      </div>
+      <div class="ctl">
+        <label>Smoothing <output id="oSmooth">2</output></label>
+        <input type="range" id="smooth" min="0" max="8" value="2">
+        <small>Softens edges so shapes are easier to cut.</small>
+      </div>
+      <div class="ctl">
+        <label>Speck removal <output id="oSpeck">60</output></label>
+        <input type="range" id="speck" min="0" max="400" value="60">
+        <small>Deletes tiny dots &amp; pinholes too small to cut.</small>
+      </div>
+    </div>
+
+    <div class="panel" id="colorPanel" style="display:none">
+      <h2><span class="dot"></span>Paint Colours</h2>
+      <div class="colors">
+        <div class="crow"><input type="color" id="cPaper" value="#ffffff"><div><div class="cl">Canvas</div><div class="cs">your paper / board</div></div></div>
+        <div class="crow"><input type="color" id="c0" value="#f2b517"><div><div class="cl">Layer 1 — lightest</div><div class="cs">sprayed first</div></div></div>
+        <div class="crow"><input type="color" id="c1" value="#d63420"><div><div class="cl">Layer 2 — darker</div><div class="cs">sprayed second</div></div></div>
+        <div class="crow"><input type="color" id="c2" value="#1a1a1a"><div><div class="cl">Layer 3 — darkest</div><div class="cs">sprayed last</div></div></div>
+      </div>
+    </div>
+
+    <div class="panel" id="outputPanel" style="display:none">
+      <h2><span class="dot"></span>Bridges</h2>
+      <label class="check" style="margin-bottom:12px">
+        <input type="checkbox" id="bridges" checked>
+        <span><b>Auto-bridge floating pieces</b> — adds thin ties so loose bits (eyes, highlights) stay attached when the stencil is cut.</span>
+      </label>
+      <div class="ctl" id="bridgeWidthRow">
+        <label>Bridge width <output id="oBridgeW">14</output></label>
+        <input type="range" id="bridgeW" min="4" max="40" value="14">
+        <small>Wider bridges are sturdier but more visible in the spray.</small>
+      </div>
+      <label class="check">
+        <input type="checkbox" id="showIslands" checked>
+        <span>Highlight <b style="color:#3577c2">bridges</b> &amp; <b style="color:var(--warn)">floating pieces</b> in the previews.</span>
+      </label>
+    </div>
+
+    <div class="panel" id="exportPanel" style="display:none">
+      <h2><span class="dot"></span>Print &amp; Cut Files</h2>
+      <label class="check" style="margin-bottom:12px">
+        <input type="checkbox" id="regMarks" checked>
+        <span><b>Registration marks</b> — identical ✚ marks in each corner of all three layers, so the passes line up on the canvas.</span>
+      </label>
+      <button class="btn primary block" id="printAll">🖨 Print all 3 stencils</button>
+      <button class="btn block" id="dlAll">⬇ Download all PNGs</button>
+      <div class="subhead">Cutting machines · vector SVG</div>
+      <div class="ctl">
+        <label>Stencil width <output id="oSvgW">200 mm</output></label>
+        <input type="range" id="svgW" min="80" max="600" step="10" value="200">
+        <small>Real-world size the SVG opens at in Illustrator / Cricut Design Space.</small>
+      </div>
+      <div class="ctl">
+        <label for="svgStyle">SVG style</label>
+        <select id="svgStyle">
+          <option value="filled">Filled shapes — Cricut / Silhouette</option>
+          <option value="outline">Hairline outlines — laser cutter</option>
+        </select>
+      </div>
+      <button class="btn accent block" id="dlAllSvg">⬇ Download all SVGs</button>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main>
+    <div class="empty" id="empty">
+      <h3>No photo yet</h3>
+      <p>Load a portrait photo on the left to generate your three stencil layers —
+         silhouette, mid-tones and details. Each layer gets cut from its own sheet,
+         then sprayed in order: lightest value → middle values → darkest values.</p>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="composite-card">
+        <div class="card-head">
+          <h2>Preview — all layers sprayed</h2>
+          <span class="sub">what the finished piece will look like</span>
+        </div>
+        <canvas id="compCanvas"></canvas>
+      </div>
+
+      <div class="layers" id="layersWrap">
+        <!-- layer cards injected -->
+      </div>
+
+      <div class="howto">
+        <h2>How to use the templates</h2>
+        <ol>
+          <li><b>Cut.</b> Print each layer and cut out the <b>black</b> areas with a craft knife — or send the SVG files to a laser cutter or Cricut. The black areas are the openings the paint passes through.</li>
+          <li><b>Silhouette pass.</b> Tape layer 1 to your canvas and spray the <b>lightest</b> colour. Lift carefully.</li>
+          <li><b>Mid-tone pass.</b> Line up layer 2 on the corners and spray the <b>darker</b> colour. Wait ~10 minutes between coats.</li>
+          <li><b>Detail pass.</b> Line up layer 3 and spray the <b>darkest</b> colour for the fine details. Reveal your portrait!</li>
+        </ol>
+      </div>
+    </div>
+  </main>
+</div>
+
+<footer>Runs entirely in your browser — no photos are uploaded anywhere. Works offline once saved.</footer>
+
+<div class="spin" id="spin">⟳ Working…</div>
+<div id="printArea"></div>
+
+<script>
+"use strict";
+
+/* ================= state ================= */
+const LAYER_META = [
+  {name:"Silhouette", hint:"base layer · lightest values", def:205},
+  {name:"Mid-tones",  hint:"second pass · middle values",  def:135},
+  {name:"Details",    hint:"final pass · darkest values",  def:70 }
+];
+const MAX_SIDE = 1400;
+
+const state = {
+  img:null, W:0, H:0,
+  gray:null,                       // Uint8Array luminance after adjust
+  masks:[null,null,null],          // Uint8Array 1=black(cut)
+  islands:[null,null,null],        // Uint8Array 1=floating white piece
+  islandCounts:[0,0,0],
+  bridgeMaps:[null,null,null],
+  bridgeCounts:[0,0,0],
+  thresholds:LAYER_META.map(m=>m.def),
+  colors:["#f2b517","#d63420","#1a1a1a"],
+  paper:"#ffffff",
+  bright:100, contrast:120, smooth:2, speck:60,
+  showIslands:true,
+  bridges:true, bridgeWidth:14,
+  regMarks:true,
+  svgWidthMM:200, svgStyle:"filled"
+};
+
+const $ = id => document.getElementById(id);
+const work = document.createElement("canvas");
+const layerCanvases = [];
+let layerStatEls = [], layerOutEls = [];
+
+/* ================= UI build ================= */
+(function buildLayerCards(){
+  const wrap = $("layersWrap");
+  LAYER_META.forEach((m,i)=>{
+    const card = document.createElement("div");
+    card.className = "layer-card";
+    card.innerHTML = `
+      <div class="lc-head">
+        <div class="lc-num" id="num${i}">${i+1}</div>
+        <h3>${m.name}<small>${m.hint}</small></h3>
+      </div>
+      <div class="ctl">
+        <label>Value threshold <output id="tOut${i}">${m.def}</output></label>
+        <input type="range" id="t${i}" min="5" max="250" value="${m.def}">
+      </div>
+      <canvas id="lc${i}"></canvas>
+      <div class="lc-stats"><span id="ink${i}"></span><span id="isl${i}"></span></div>
+      <div class="lc-btns">
+        <button class="btn" data-dl="${i}">⬇ PNG</button>
+        <button class="btn" data-svg="${i}">⬇ SVG</button>
+        <button class="btn" data-pr="${i}">🖨 Print</button>
+      </div>`;
+    wrap.appendChild(card);
+    layerCanvases[i] = card.querySelector(`#lc${i}`);
+  });
+  layerStatEls = [0,1,2].map(i=>({ink:$("ink"+i), isl:$("isl"+i)}));
+  layerOutEls  = [0,1,2].map(i=>$("tOut"+i));
+})();
+
+/* ================= image loading ================= */
+const fileInput = $("file"), drop = $("drop");
+
+function loadFile(file){
+  if(!file || !file.type.startsWith("image/")) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = ()=>{
+    URL.revokeObjectURL(url);
+    state.img = img;
+    $("thumb").src = url2thumb(img);
+    $("thumbwrap").style.display = "block";
+    drop.style.display = "none";
+    ["adjustPanel","colorPanel","outputPanel","exportPanel"].forEach(id=>$(id).style.display="block");
+    $("empty").style.display = "none";
+    $("stage").style.display = "block";
+    fullRebuild();
+  };
+  img.src = url;
+}
+function url2thumb(img){
+  const c = document.createElement("canvas");
+  const s = Math.min(1, 260/img.naturalWidth);
+  c.width = img.naturalWidth*s; c.height = img.naturalHeight*s;
+  c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+  return c.toDataURL("image/jpeg",.8);
+}
+
+drop.addEventListener("click", ()=>fileInput.click());
+drop.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" ") fileInput.click(); });
+$("changeBtn").addEventListener("click", ()=>fileInput.click());
+fileInput.addEventListener("change", e=>loadFile(e.target.files[0]));
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop", e=>loadFile(e.dataTransfer.files[0]));
+window.addEventListener("paste", e=>{
+  const item = [...(e.clipboardData?.items||[])].find(i=>i.type.startsWith("image/"));
+  if(item) loadFile(item.getAsFile());
+});
+
+/* ================= processing ================= */
+const spin = $("spin");
+let busyTimer = null;
+function busy(on){
+  clearTimeout(busyTimer);
+  if(on) busyTimer = setTimeout(()=>spin.classList.add("on"), 120);
+  else spin.classList.remove("on");
+}
+
+function preprocess(){
+  const img = state.img;
+  const s = Math.min(1, MAX_SIDE/Math.max(img.naturalWidth,img.naturalHeight));
+  const W = Math.max(1,Math.round(img.naturalWidth*s));
+  const H = Math.max(1,Math.round(img.naturalHeight*s));
+  state.W=W; state.H=H;
+  work.width=W; work.height=H;
+  const ctx = work.getContext("2d",{willReadFrequently:true});
+  ctx.filter = "none";
+  ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H);
+  ctx.filter = `grayscale(1) brightness(${state.bright}%) contrast(${state.contrast}%) blur(${state.smooth}px)`;
+  ctx.drawImage(img,0,0,W,H);
+  ctx.filter = "none";
+  const d = ctx.getImageData(0,0,W,H).data;
+  const g = new Uint8Array(W*H);
+  for(let i=0,j=0;i<g.length;i++,j+=4) g[i]=d[j];
+  state.gray = g;
+}
+
+function buildMask(layer){
+  const {gray,W,H} = state, t = state.thresholds[layer];
+  const N = W*H;
+  const mask = new Uint8Array(N);
+  for(let i=0;i<N;i++) mask[i] = gray[i] < t ? 1 : 0;
+  if(state.speck>0) despeckle(mask,W,H,state.speck);
+  let res = findIslands(mask,W,H);
+  let bridgeMap = null, bridgeCount = 0;
+  if(state.bridges && res.count){
+    bridgeMap = new Uint8Array(N);
+    bridgeCount = addBridges(mask,res,bridgeMap,W,H,state.bridgeWidth);
+    res = findIslands(mask,W,H);   // anything still floating after bridging?
+  }
+  state.masks[layer]=mask;
+  state.islands[layer]=res.map;
+  state.islandCounts[layer]=res.count;
+  state.bridgeMaps[layer]=bridgeMap;
+  state.bridgeCounts[layer]=bridgeCount;
+}
+
+/* remove connected blobs (black or white) smaller than minSize */
+function despeckle(mask,W,H,minSize){
+  const N=W*H;
+  const lab = new Int32Array(N);
+  const stack = new Int32Array(N);
+  const comp = new Int32Array(N);
+  let cur=0;
+  for(let seed=0;seed<N;seed++){
+    if(lab[seed]) continue;
+    cur++;
+    const v = mask[seed];
+    let sp=0, cn=0;
+    stack[sp++]=seed; lab[seed]=cur;
+    while(sp){
+      const p = stack[--sp];
+      comp[cn++]=p;
+      const x=p%W;
+      if(x>0       && !lab[p-1] && mask[p-1]===v){lab[p-1]=cur;stack[sp++]=p-1;}
+      if(x<W-1     && !lab[p+1] && mask[p+1]===v){lab[p+1]=cur;stack[sp++]=p+1;}
+      if(p>=W      && !lab[p-W] && mask[p-W]===v){lab[p-W]=cur;stack[sp++]=p-W;}
+      if(p<N-W     && !lab[p+W] && mask[p+W]===v){lab[p+W]=cur;stack[sp++]=p+W;}
+    }
+    if(cn<minSize){
+      const nv = v?0:1;
+      for(let k=0;k<cn;k++) mask[comp[k]]=nv;
+    }
+  }
+}
+
+/* white regions not connected to the border = pieces that fall out when cut */
+function findIslands(mask,W,H){
+  const N=W*H;
+  const seen = new Uint8Array(N);
+  const stack = new Int32Array(N);
+  let sp=0;
+  const push = p=>{ if(!seen[p] && !mask[p]){ seen[p]=1; stack[sp++]=p; } };
+  for(let x=0;x<W;x++){ push(x); push(N-W+x); }
+  for(let y=0;y<H;y++){ push(y*W); push(y*W+W-1); }
+  while(sp){
+    const p=stack[--sp], x=p%W;
+    if(x>0)   push(p-1);
+    if(x<W-1) push(p+1);
+    if(p>=W)  push(p-W);
+    if(p<N-W) push(p+W);
+  }
+  const map = new Uint8Array(N);
+  const regions = [];
+  for(let i=0;i<N;i++){
+    if(!mask[i] && !seen[i] && !map[i]){
+      const reg=[];
+      let s2=0; stack[s2++]=i; map[i]=1;
+      while(s2){
+        const p=stack[--s2], x=p%W;
+        reg.push(p);
+        if(x>0   && !mask[p-1] && !map[p-1]){map[p-1]=1;stack[s2++]=p-1;}
+        if(x<W-1 && !mask[p+1] && !map[p+1]){map[p+1]=1;stack[s2++]=p+1;}
+        if(p>=W  && !mask[p-W] && !map[p-W]){map[p-W]=1;stack[s2++]=p-W;}
+        if(p<N-W && !mask[p+W] && !map[p+W]){map[p+W]=1;stack[s2++]=p+W;}
+      }
+      regions.push(reg);
+    }
+  }
+  return {map,count:regions.length,regions,seen};
+}
+
+/* connect each floating white region to the nearest safe (border-connected)
+   white area with a thin white tie cut through the black, BFS shortest path */
+function addBridges(mask,isl,bridgeMap,W,H,width){
+  const N=W*H;
+  const r=Math.max(1,Math.round(width/2));
+  const parent=new Int32Array(N);
+  const queue=new Int32Array(N);
+  const stamp=p=>{
+    const cx=p%W, cy=(p-cx)/W;
+    for(let dy=-r;dy<=r;dy++){
+      const yy=cy+dy; if(yy<0||yy>=H) continue;
+      for(let dx=-r;dx<=r;dx++){
+        const xx=cx+dx; if(xx<0||xx>=W) continue;
+        if(dx*dx+dy*dy>r*r) continue;
+        const q=yy*W+xx;
+        if(mask[q]){ mask[q]=0; bridgeMap[q]=1; }
+      }
+    }
+  };
+  let count=0;
+  for(const reg of isl.regions){
+    parent.fill(-1);
+    let qh=0,qt=0,found=-1;
+    for(let k=0;k<reg.length;k++){ const p=reg[k]; parent[p]=p; queue[qt++]=p; }
+    while(qh<qt && found<0){
+      const p=queue[qh++], x=p%W;
+      let nb;
+      nb=p-1; if(x>0   && parent[nb]===-1){ parent[nb]=p; if(!mask[nb]&&(isl.seen[nb]||bridgeMap[nb])){found=nb;break;} queue[qt++]=nb; }
+      nb=p+1; if(x<W-1 && parent[nb]===-1){ parent[nb]=p; if(!mask[nb]&&(isl.seen[nb]||bridgeMap[nb])){found=nb;break;} queue[qt++]=nb; }
+      nb=p-W; if(p>=W  && parent[nb]===-1){ parent[nb]=p; if(!mask[nb]&&(isl.seen[nb]||bridgeMap[nb])){found=nb;break;} queue[qt++]=nb; }
+      nb=p+W; if(p<N-W && parent[nb]===-1){ parent[nb]=p; if(!mask[nb]&&(isl.seen[nb]||bridgeMap[nb])){found=nb;break;} queue[qt++]=nb; }
+    }
+    if(found>=0){
+      count++;
+      let p=found;
+      while(parent[p]!==p){ stamp(p); p=parent[p]; }
+      stamp(p);
+    }
+  }
+  return count;
+}
+
+/* ================= registration marks ================= */
+function markGeom(){
+  const {W,H}=state;
+  const len=Math.round(Math.min(W,H)*0.05);
+  const th=Math.max(3,Math.round(len/5));
+  const m=Math.round(len*0.9);   // inset of mark centre from each corner
+  return {len,th,pts:[[m,m],[W-m,m],[m,H-m],[W-m,H-m]]};
+}
+function drawMarks(ctx){
+  const g=markGeom();
+  ctx.fillStyle="#16140f";
+  for(const [cx,cy] of g.pts){
+    ctx.fillRect(cx-g.th/2, cy-g.len/2, g.th, g.len);
+    ctx.fillRect(cx-g.len/2, cy-g.th/2, g.len, g.th);
+  }
+}
+function stampMarks(mask){       // burn ✚ marks into a mask copy for vector tracing
+  const {W,H}=state;
+  const g=markGeom();
+  const rect=(x0,y0,w,h)=>{
+    for(let y=Math.max(0,y0);y<Math.min(H,y0+h);y++)
+      for(let x=Math.max(0,x0);x<Math.min(W,x0+w);x++) mask[y*W+x]=1;
+  };
+  for(const [cx,cy] of g.pts){
+    rect(Math.round(cx-g.th/2), Math.round(cy-g.len/2), g.th, g.len);
+    rect(Math.round(cx-g.len/2), Math.round(cy-g.th/2), g.len, g.th);
+  }
+  return mask;
+}
+
+/* ================= rendering ================= */
+function hex2rgb(h){
+  return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+}
+
+function renderLayer(i, clean=false, targetCanvas=null){
+  const {W,H} = state;
+  const mask = state.masks[i], isl = state.islands[i];
+  const c = targetCanvas || layerCanvases[i];
+  c.width=W; c.height=H;
+  const ctx = c.getContext("2d");
+  const id = ctx.createImageData(W,H);
+  const d = id.data;
+  const br = state.bridgeMaps[i];
+  const showHl = state.showIslands && !clean;
+  for(let p=0,j=4*0;p<mask.length;p++,j=p*4){
+    if(mask[p]){ d[j]=22;d[j+1]=20;d[j+2]=15; }
+    else if(showHl && isl[p]){ d[j]=240;d[j+1]=70;d[j+2]=60; }
+    else if(showHl && br && br[p]){ d[j]=83;d[j+1]=141;d[j+2]=213; }
+    else { d[j]=255;d[j+1]=255;d[j+2]=255; }
+    d[j+3]=255;
+  }
+  ctx.putImageData(id,0,0);
+  if(state.regMarks) drawMarks(ctx);
+  return c;
+}
+
+function renderStats(i){
+  const mask = state.masks[i];
+  let ink=0; for(let p=0;p<mask.length;p++) ink+=mask[p];
+  layerStatEls[i].ink.textContent = "ink " + Math.round(100*ink/mask.length) + "%";
+  const n = state.islandCounts[i], b = state.bridgeCounts[i];
+  if(state.bridges){
+    layerStatEls[i].isl.innerHTML = n
+      ? `<span class="lc-warn">⚠ ${n} piece${n>1?"s":""} still floating — widen bridges</span>`
+      : b
+        ? `<span class="lc-ok">✔ ${b} bridge${b>1?"s":""} added</span>`
+        : `<span class="lc-ok">✔ no bridges needed</span>`;
+  } else {
+    layerStatEls[i].isl.innerHTML = n
+      ? `<span class="lc-warn">⚠ ${n} floating piece${n>1?"s":""} — bridge with a pen</span>`
+      : `<span class="lc-ok">✔ no floating pieces</span>`;
+  }
+}
+
+function renderComposite(){
+  const {W,H} = state;
+  const c = $("compCanvas");
+  c.width=W; c.height=H;
+  const ctx = c.getContext("2d");
+  const id = ctx.createImageData(W,H);
+  const d = id.data;
+  const paper = hex2rgb(state.paper);
+  const cols = state.colors.map(hex2rgb);
+  const [m0,m1,m2] = state.masks;
+  for(let p=0,j=0;p<W*H;p++,j+=4){
+    let rgb = paper;
+    if(m0[p]) rgb = cols[0];
+    if(m1[p]) rgb = cols[1];
+    if(m2[p]) rgb = cols[2];
+    d[j]=rgb[0];d[j+1]=rgb[1];d[j+2]=rgb[2];d[j+3]=255;
+  }
+  ctx.putImageData(id,0,0);
+}
+
+function paintBadges(){
+  [0,1,2].forEach(i=>{ $("num"+i).style.background = state.colors[i]; });
+}
+
+/* ================= pipelines ================= */
+function fullRebuild(){
+  busy(true);
+  requestAnimationFrame(()=>{
+    preprocess();
+    for(let i=0;i<3;i++){ buildMask(i); renderLayer(i); renderStats(i); }
+    renderComposite(); paintBadges();
+    busy(false);
+  });
+}
+function rebuildLayer(i){
+  busy(true);
+  requestAnimationFrame(()=>{
+    buildMask(i); renderLayer(i); renderStats(i); renderComposite();
+    busy(false);
+  });
+}
+function rerenderOnly(){
+  if(!state.img) return;
+  for(let i=0;i<3;i++) renderLayer(i);
+  renderComposite(); paintBadges();
+}
+
+function rebuildMasks(){            // thresholds unchanged source: skip preprocess
+  busy(true);
+  requestAnimationFrame(()=>{
+    for(let i=0;i<3;i++){ buildMask(i); renderLayer(i); renderStats(i); }
+    renderComposite();
+    busy(false);
+  });
+}
+
+const debounce = (fn,ms)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
+const debFull = debounce(fullRebuild,160);
+const debMasks = debounce(rebuildMasks,160);
+const debLayer = [0,1,2].map(i=>debounce(()=>rebuildLayer(i),120));
+
+/* ================= wiring ================= */
+function bindGlobal(id,key,outId,fmt){
+  $(id).addEventListener("input", e=>{
+    state[key]=+e.target.value;
+    $(outId).textContent = fmt(e.target.value);
+    if(state.img) debFull();
+  });
+}
+bindGlobal("bright","bright","oBright",v=>v+"%");
+bindGlobal("contrast","contrast","oContrast",v=>v+"%");
+bindGlobal("smooth","smooth","oSmooth",v=>v);
+
+$("speck").addEventListener("input", e=>{
+  state.speck=+e.target.value;
+  $("oSpeck").textContent=e.target.value;
+  if(state.img) debMasks();
+});
+$("bridges").addEventListener("change", e=>{
+  state.bridges=e.target.checked;
+  $("bridgeWidthRow").style.display = state.bridges ? "" : "none";
+  if(state.img) rebuildMasks();
+});
+$("bridgeW").addEventListener("input", e=>{
+  state.bridgeWidth=+e.target.value;
+  $("oBridgeW").textContent=e.target.value;
+  if(state.img) debMasks();
+});
+$("svgW").addEventListener("input", e=>{
+  state.svgWidthMM=+e.target.value;
+  $("oSvgW").textContent=e.target.value+" mm";
+});
+$("svgStyle").addEventListener("change", e=>{ state.svgStyle=e.target.value; });
+$("regMarks").addEventListener("change", e=>{
+  state.regMarks=e.target.checked;
+  if(state.img) rerenderOnly();
+});
+
+[0,1,2].forEach(i=>{
+  $("t"+i).addEventListener("input", e=>{
+    state.thresholds[i]=+e.target.value;
+    layerOutEls[i].textContent = e.target.value;
+    if(state.img) debLayer[i]();
+  });
+});
+
+$("cPaper").addEventListener("input", e=>{ state.paper=e.target.value; if(state.img) renderComposite(); });
+[0,1,2].forEach(i=>{
+  $("c"+i).addEventListener("input", e=>{
+    state.colors[i]=e.target.value;
+    if(state.img){ renderComposite(); paintBadges(); }
+  });
+});
+$("showIslands").addEventListener("change", e=>{
+  state.showIslands = e.target.checked;
+  rerenderOnly();
+});
+
+/* ================= vector export (laser / Cricut) ================= */
+/* trace pixel boundaries into closed loops: clockwise around cut areas,
+   counter-clockwise around holes — even-odd fill handles both */
+function traceMask(mask,W,H){
+  const KW=W+1;
+  const edges=new Map();
+  const addE=(k1,k2)=>{ let a=edges.get(k1); if(!a){a=[];edges.set(k1,a);} a.push(k2); };
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const p=y*W+x;
+      if(!mask[p]) continue;
+      if(y===0  ||!mask[p-W]) addE(y*KW+x,        y*KW+x+1);
+      if(x===W-1||!mask[p+1]) addE(y*KW+x+1,     (y+1)*KW+x+1);
+      if(y===H-1||!mask[p+W]) addE((y+1)*KW+x+1, (y+1)*KW+x);
+      if(x===0  ||!mask[p-1]) addE((y+1)*KW+x,    y*KW+x);
+    }
+  }
+  const loops=[];
+  for(const [start,arr0] of edges){
+    while(arr0.length){
+      const loop=[start];
+      let prev=start, cur=arr0.pop();
+      while(cur!==start){
+        loop.push(cur);
+        const a=edges.get(cur);
+        let nxt;
+        if(a.length===1) nxt=a.pop();
+        else{
+          // ambiguous corner: prefer the right turn to keep regions separate
+          const dx=(cur%KW)-(prev%KW), dy=((cur/KW)|0)-((prev/KW)|0);
+          const rx=-dy, ry=dx;
+          let pick=0;
+          for(let k=0;k<a.length;k++){
+            const cdx=(a[k]%KW)-(cur%KW), cdy=((a[k]/KW)|0)-((cur/KW)|0);
+            if(cdx===rx && cdy===ry){ pick=k; break; }
+          }
+          nxt=a.splice(pick,1)[0];
+        }
+        prev=cur; cur=nxt;
+      }
+      loops.push(loop.map(k=>[k%KW,(k/KW)|0]));
+    }
+  }
+  return loops;
+}
+
+function mergeCollinear(pts){
+  const out=[];
+  for(const c of pts){
+    while(out.length>=2){
+      const a=out[out.length-2], b=out[out.length-1];
+      if((b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])===0) out.pop();
+      else break;
+    }
+    out.push(c);
+  }
+  return out;
+}
+
+function rdp(pts,eps){
+  if(pts.length<3) return pts;
+  const keep=new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1;
+  const stk=[[0,pts.length-1]];
+  while(stk.length){
+    const [i,j]=stk.pop();
+    const [x1,y1]=pts[i],[x2,y2]=pts[j];
+    const dx=x2-x1, dy=y2-y1;
+    const len=Math.hypot(dx,dy)||1e-9;
+    let maxD=-1, idx=-1;
+    for(let k=i+1;k<j;k++){
+      const d=Math.abs(dx*(y1-pts[k][1])-dy*(x1-pts[k][0]))/len;
+      if(d>maxD){ maxD=d; idx=k; }
+    }
+    if(maxD>eps){ keep[idx]=1; stk.push([i,idx],[idx,j]); }
+  }
+  return pts.filter((_,k)=>keep[k]);
+}
+
+function maskToSVG(i){
+  const {W,H}=state;
+  let mask=state.masks[i];
+  if(state.regMarks) mask=stampMarks(new Uint8Array(mask));
+  const loops=traceMask(mask,W,H);
+  let d="";
+  for(const loop of loops){
+    const s=rdp(mergeCollinear(loop),1.2);
+    if(s.length<3) continue;
+    d+="M"+s.map(p=>p[0]+" "+p[1]).join("L")+"Z";
+  }
+  const wmm=state.svgWidthMM, hmm=+(wmm*H/W).toFixed(1);
+  const shape = state.svgStyle==="outline"
+    ? `<path d="${d}" fill="none" stroke="#ff0000" stroke-width="0.25"/>`
+    : `<path d="${d}" fill="#000000" fill-rule="evenodd" stroke="none"/>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n`+
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${wmm}mm" height="${hmm}mm" viewBox="0 0 ${W} ${H}">\n`+
+    `<title>Stencil layer ${i+1} — ${LAYER_META[i].name} (black = cut openings)</title>\n${shape}\n</svg>`;
+}
+
+function downloadSVG(i){
+  const blob=new Blob([maskToSVG(i)],{type:"image/svg+xml"});
+  const url=URL.createObjectURL(blob);
+  download(`stencil-layer-${i+1}-${LAYER_META[i].name.toLowerCase().replace(/\s+/g,"-")}.svg`,url);
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+
+/* ================= export ================= */
+function cleanLayerDataURL(i){
+  const c = document.createElement("canvas");
+  renderLayer(i, true, c);
+  return c.toDataURL("image/png");
+}
+function download(name,url){
+  const a=document.createElement("a"); a.href=url; a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function printLayers(indices){
+  const area = $("printArea");
+  area.innerHTML = "";
+  indices.forEach(i=>{
+    const pg = document.createElement("div");
+    pg.className="ppage";
+    const img = document.createElement("img");
+    img.src = cleanLayerDataURL(i);
+    const cap = document.createElement("div");
+    cap.className="cap";
+    cap.textContent = `Layer ${i+1} — ${LAYER_META[i].name} — cut out the black areas`;
+    pg.append(img,cap);
+    area.appendChild(pg);
+  });
+  const imgs=[...area.querySelectorAll("img")];
+  Promise.all(imgs.map(im=>im.decode().catch(()=>{}))).then(()=>window.print());
+}
+
+document.addEventListener("click", e=>{
+  const dl = e.target.closest("[data-dl]");
+  if(dl){ const i=+dl.dataset.dl; download(`stencil-layer-${i+1}.png`, cleanLayerDataURL(i)); return; }
+  const sv = e.target.closest("[data-svg]");
+  if(sv){ downloadSVG(+sv.dataset.svg); return; }
+  const pr = e.target.closest("[data-pr]");
+  if(pr){ printLayers([+pr.dataset.pr]); return; }
+});
+$("dlAllSvg").addEventListener("click", ()=>{
+  [0,1,2].forEach(i=>setTimeout(()=>downloadSVG(i), i*350));
+});
+$("printAll").addEventListener("click", ()=>printLayers([0,1,2]));
+$("dlAll").addEventListener("click", ()=>{
+  [0,1,2].forEach(i=>setTimeout(()=>download(`stencil-layer-${i+1}.png`, cleanLayerDataURL(i)), i*350));
+});
+</script>
+</body>
+</html>
