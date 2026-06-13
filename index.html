@@ -1,0 +1,1672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spray Paint Portraits — 3-Layer Stencil Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&family=Sometype+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f3efe4;
+    --paper-2:#ece7d8;
+    --ink:#16140f;
+    --ink-soft:#3a362c;
+    --yellow:#f2b517;
+    --red:#d63420;
+    --line:#d8d2c0;
+    --card:#fbf9f2;
+    --good:#2e7d4f;
+    --warn:#d63420;
+    --display:'Saira Stencil One','Arial Black','Impact',sans-serif;
+    --mono:'Sometype Mono',Consolas,'Courier New',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--mono);
+    background:var(--paper);
+    color:var(--ink);
+    min-height:100vh;
+    background-image:
+      radial-gradient(circle at 12% -4%, rgba(242,181,23,.18), transparent 28%),
+      radial-gradient(circle at 96% 8%, rgba(214,52,32,.10), transparent 24%);
+  }
+  /* paper grain */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:1000;opacity:.5;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- header ---------- */
+  header{
+    background:var(--ink);color:var(--paper);
+    padding:26px 32px 22px;position:relative;overflow:hidden;
+    border-bottom:6px solid var(--yellow);
+  }
+  header .splat{position:absolute;pointer-events:none}
+  header h1{
+    font-family:var(--display);font-weight:400;
+    font-size:clamp(26px,4vw,44px);letter-spacing:.04em;line-height:1;
+    text-transform:uppercase;position:relative;z-index:2;
+  }
+  header h1 .y{color:var(--yellow)} header h1 .r{color:#ff5a3c}
+  header p{
+    margin-top:8px;font-size:13px;color:#b9b3a2;max-width:640px;position:relative;z-index:2;
+  }
+  .badge3{
+    position:absolute;right:34px;top:50%;transform:translateY(-50%) rotate(8deg);
+    width:92px;height:92px;border-radius:50%;
+    background:var(--red);color:#fff;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;z-index:2;
+    font-family:var(--display);box-shadow:0 0 0 5px var(--ink),0 0 0 7px var(--paper);
+  }
+  .badge3 b{font-size:38px;font-weight:400;line-height:1}
+  .badge3 span{font-size:10px;letter-spacing:.12em}
+
+  /* ---------- layout ---------- */
+  .app{display:grid;grid-template-columns:300px 1fr;gap:26px;padding:26px 32px 60px;max-width:1500px;margin:0 auto}
+  @media (max-width:980px){.app{grid-template-columns:1fr}}
+
+  /* ---------- panels ---------- */
+  .panel{
+    background:var(--card);border:2px solid var(--ink);
+    box-shadow:5px 5px 0 rgba(22,20,15,.16);
+    padding:16px 16px 18px;margin-bottom:20px;position:relative;
+  }
+  .panel h2{
+    font-family:var(--display);font-weight:400;font-size:15px;letter-spacing:.10em;
+    text-transform:uppercase;border-bottom:2px dashed var(--line);
+    padding-bottom:8px;margin-bottom:14px;display:flex;align-items:center;gap:8px;
+  }
+  .panel h2 .dot{width:11px;height:11px;border-radius:50%;background:var(--yellow);border:2px solid var(--ink);flex:none}
+
+  /* ---------- upload ---------- */
+  .drop{
+    border:2px dashed var(--ink);background:var(--paper-2);
+    padding:18px 12px;text-align:center;cursor:pointer;transition:background .15s,transform .1s;
+  }
+  .drop:hover{background:#e6e0cd}
+  .drop.over{background:#f7e9be;transform:scale(1.015)}
+  .drop strong{font-family:var(--display);font-weight:400;letter-spacing:.06em;font-size:14px;display:block;text-transform:uppercase}
+  .drop span{font-size:11px;color:var(--ink-soft);display:block;margin-top:6px;line-height:1.5}
+  .thumbwrap{display:none;margin-top:12px;text-align:center}
+  .thumbwrap img{max-width:100%;max-height:130px;border:2px solid var(--ink);transform:rotate(-1.2deg);box-shadow:3px 3px 0 rgba(22,20,15,.2)}
+  .thumbwrap button{margin-top:10px}
+
+  /* ---------- sliders ---------- */
+  .ctl{margin-bottom:13px}
+  .ctl label{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;letter-spacing:.04em;margin-bottom:5px;text-transform:uppercase}
+  .ctl label output{font-weight:400;color:var(--ink-soft)}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:6px;background:var(--ink);border-radius:0}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:18px;height:18px;margin-top:-6px;border-radius:50%;
+    background:var(--yellow);border:3px solid var(--ink);box-shadow:2px 2px 0 rgba(22,20,15,.25);
+  }
+  input[type=range]::-moz-range-track{height:6px;background:var(--ink)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--yellow);border:3px solid var(--ink)}
+  .ctl small{display:block;font-size:10px;color:var(--ink-soft);margin-top:2px;line-height:1.45}
+
+  /* ---------- colors ---------- */
+  .colors{display:grid;gap:9px}
+  .crow{display:flex;align-items:center;gap:10px;font-size:11.5px}
+  .crow input[type=color]{
+    -webkit-appearance:none;appearance:none;width:38px;height:30px;padding:0;border:2px solid var(--ink);
+    background:none;cursor:pointer;flex:none;
+  }
+  .crow input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
+  .crow input[type=color]::-webkit-color-swatch{border:none}
+  .crow .cl{font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+  .crow .cs{color:var(--ink-soft);font-size:10px}
+
+  .check{display:flex;align-items:flex-start;gap:9px;font-size:11.5px;cursor:pointer;line-height:1.5}
+  .check input{width:16px;height:16px;accent-color:var(--red);margin-top:1px;flex:none}
+  .subhead{
+    font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);
+    border-top:2px dashed var(--line);margin:16px 0 12px;padding-top:12px;
+  }
+  select{
+    font-family:var(--mono);font-size:11px;border:2px solid var(--ink);background:var(--card);
+    padding:7px 6px;width:100%;cursor:pointer;color:var(--ink);
+  }
+
+  /* ---------- buttons ---------- */
+  .btn{
+    font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    border:2px solid var(--ink);background:var(--card);color:var(--ink);
+    padding:8px 13px;cursor:pointer;box-shadow:3px 3px 0 var(--ink);
+    transition:transform .08s,box-shadow .08s;
+  }
+  .btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+  .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:3px 3px 0 var(--ink)}
+  .btn.primary{background:var(--ink);color:var(--paper)}
+  .btn.accent{background:var(--yellow)}
+  .btn.block{width:100%;text-align:center}
+  .btn + .btn{margin-top:8px}
+
+  /* ---------- main / cards ---------- */
+  .empty{
+    border:2px dashed var(--ink);padding:70px 30px;text-align:center;color:var(--ink-soft);
+    background:var(--paper-2);
+  }
+  .empty h3{font-family:var(--display);font-weight:400;font-size:24px;letter-spacing:.08em;color:var(--ink);text-transform:uppercase;margin-bottom:10px}
+  .empty p{font-size:12.5px;line-height:1.7;max-width:430px;margin:0 auto}
+
+  .stage{display:none}
+  .composite-card{
+    background:var(--card);border:2px solid var(--ink);box-shadow:6px 6px 0 rgba(22,20,15,.16);
+    padding:18px;margin-bottom:28px;position:relative;
+  }
+  .composite-card::before,.composite-card::after,
+  .layer-card::before{
+    content:"";position:absolute;width:84px;height:26px;top:-13px;
+    background:rgba(242,214,128,.85);border:1px solid rgba(160,130,40,.4);
+    transform:rotate(-3deg);box-shadow:0 1px 2px rgba(0,0,0,.12);
+  }
+  .composite-card::before{left:38px}
+  .composite-card::after{right:38px;transform:rotate(4deg)}
+  .card-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+  .card-head h2{font-family:var(--display);font-weight:400;font-size:18px;letter-spacing:.08em;text-transform:uppercase}
+  .card-head .sub{font-size:11px;color:var(--ink-soft)}
+  .composite-card canvas{display:block;width:100%;max-height:560px;object-fit:contain;background:#fff;border:2px solid var(--ink)}
+
+  .layers{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:26px}
+  .layer-card{
+    background:var(--card);border:2px solid var(--ink);box-shadow:6px 6px 0 rgba(22,20,15,.16);
+    padding:16px;position:relative;
+  }
+  .layer-card::before{left:50%;margin-left:-42px;transform:rotate(-2deg)}
+  .layer-card:nth-child(2){transform:rotate(.5deg)}
+  .layer-card:nth-child(1){transform:rotate(-.5deg)}
+  .lc-head{display:flex;align-items:center;gap:11px;margin-bottom:10px}
+  .lc-num{
+    width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+    font-family:var(--display);font-size:21px;color:#fff;border:3px solid var(--ink);
+    box-shadow:2px 2px 0 rgba(22,20,15,.3);
+  }
+  .lc-head h3{font-family:var(--display);font-weight:400;font-size:15px;letter-spacing:.06em;text-transform:uppercase;line-height:1.15}
+  .lc-head small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-soft);letter-spacing:0;text-transform:none;margin-top:2px}
+  .layer-card canvas{display:block;width:100%;background:#fff;border:2px solid var(--ink)}
+  .lc-stats{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:var(--ink-soft);margin:8px 0 4px;min-height:18px}
+  .lc-warn{color:var(--warn);font-weight:700}
+  .lc-ok{color:var(--good)}
+  .lc-btns{display:flex;gap:8px;margin-top:10px}
+  .lc-btns .btn{flex:1;padding:7px 6px;font-size:10.5px;margin:0}
+
+  /* ---------- how-to ---------- */
+  .howto{margin-top:34px;background:var(--ink);color:var(--paper);border:2px solid var(--ink);padding:20px 22px;box-shadow:6px 6px 0 rgba(22,20,15,.16)}
+  .howto h2{font-family:var(--display);font-weight:400;font-size:17px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;color:var(--yellow)}
+  .howto ol{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;counter-reset:step}
+  .howto li{counter-increment:step;font-size:11.5px;line-height:1.6;color:#cfc9b8;padding-left:34px;position:relative}
+  .howto li::before{
+    content:counter(step);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;
+    background:var(--yellow);color:var(--ink);font-family:var(--display);font-size:13px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .howto li b{color:var(--paper)}
+
+  .spin{display:none;position:fixed;right:22px;bottom:22px;z-index:1100;background:var(--ink);color:var(--yellow);
+    font-size:11px;padding:8px 14px;letter-spacing:.08em;text-transform:uppercase}
+  .spin.on{display:block}
+
+  footer{padding:0 32px 40px;max-width:1500px;margin:0 auto;font-size:10.5px;color:var(--ink-soft)}
+
+  /* ---------- photo tools / edit mode / modal ---------- */
+  .btn.on{background:var(--yellow)}
+  .ptools{display:flex;gap:6px;margin-top:10px}
+  .ptools .btn{flex:1;padding:7px 4px;margin:0}
+  .thumbwrap .btn.block{margin-top:8px}
+  .panel small.note{display:block;font-size:10px;color:var(--ink-soft);margin-top:8px;line-height:1.45}
+  .lc-edit{display:none;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+  .lc-edit .btn{flex:1;padding:6px 4px;font-size:10px;margin:0;box-shadow:2px 2px 0 var(--ink)}
+  .lc-edit small{flex-basis:100%;font-size:9.5px;color:var(--ink-soft);line-height:1.4}
+  .layer-card canvas.editing{cursor:crosshair;outline:3px solid #538dd5;outline-offset:-3px;touch-action:none}
+  .modal{display:none;position:fixed;inset:0;background:rgba(22,20,15,.72);z-index:1200;align-items:center;justify-content:center;padding:20px}
+  .modal.on{display:flex}
+  .modal-box{background:var(--card);border:2px solid var(--ink);box-shadow:6px 6px 0 rgba(22,20,15,.3);padding:16px;max-width:92vw}
+  .modal-box h3{font-family:var(--display);font-weight:400;font-size:16px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+  .modal-box canvas{display:block;border:2px solid var(--ink);cursor:crosshair;touch-action:none;max-width:100%}
+  .modal-box small{display:block;margin-top:8px;font-size:10px;color:var(--ink-soft)}
+  .modal-btns{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+  .modal-btns .btn{margin:0}
+
+  /* ---------- print ---------- */
+  #printArea{display:none}
+  @media print{
+    body{background:#fff}
+    body::before{display:none}
+    header,.app,footer,.spin{display:none!important}
+    #printArea{display:block}
+    .ppage{page-break-after:always;display:flex;flex-direction:column;align-items:center;justify-content:center;height:96vh}
+    .ppage:last-child{page-break-after:auto}
+    .ppage img{max-width:100%;max-height:88vh;object-fit:contain}
+    .ppage .cap{font-family:var(--mono);font-size:10px;color:#444;margin-top:6px;letter-spacing:.06em;text-transform:uppercase}
+    .ptile{page-break-after:always}
+    .ptile:last-child{page-break-after:auto}
+    .ptile img{display:block}
+    .ptile .cap{font-family:var(--mono);font-size:9px;color:#444;margin-top:4px;letter-spacing:.05em;text-transform:uppercase}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <svg class="splat" style="left:-30px;top:-46px;opacity:.85" width="220" height="220" viewBox="0 0 100 100"><g fill="#f2b517"><circle cx="50" cy="50" r="22"/><circle cx="79" cy="38" r="5"/><circle cx="74" cy="66" r="3.4"/><circle cx="25" cy="33" r="4.2"/><circle cx="20" cy="60" r="2.6"/><circle cx="58" cy="81" r="3"/><circle cx="38" cy="16" r="2.4"/><circle cx="88" cy="55" r="2"/></g></svg>
+  <svg class="splat" style="right:140px;bottom:-60px;opacity:.5" width="190" height="190" viewBox="0 0 100 100"><g fill="#d63420"><circle cx="50" cy="50" r="20"/><circle cx="76" cy="34" r="4"/><circle cx="28" cy="68" r="3.4"/><circle cx="22" cy="36" r="2.6"/><circle cx="64" cy="79" r="2.4"/></g></svg>
+  <h1>Spray <span class="y">Paint</span> Portraits <span class="r">/</span> Stencil Maker</h1>
+  <p>Turn any photo into 2–6 cuttable stencil layers — silhouette, mid-tones and details. Thresholds are auto-picked from the photo, then print, laser-cut or Cricut, and spray.</p>
+  <div class="badge3"><b id="badgeN">×3</b><span>LAYERS</span></div>
+</header>
+
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside>
+    <div class="panel">
+      <h2><span class="dot"></span>Photo</h2>
+      <div class="drop" id="drop" tabindex="0">
+        <strong>Drop a photo here</strong>
+        <span>or click to browse · you can also paste (Ctrl+V)<br>Portraits with a plain background work best</span>
+      </div>
+      <input type="file" id="file" accept="image/*" hidden>
+      <div class="thumbwrap" id="thumbwrap">
+        <img id="thumb" alt="loaded photo">
+        <div class="ptools">
+          <button class="btn" id="rotL" title="rotate left">⟲</button>
+          <button class="btn" id="rotR" title="rotate right">⟳</button>
+          <button class="btn" id="flipH" title="mirror">⇋</button>
+          <button class="btn" id="cropBtn" title="crop">✂</button>
+        </div>
+        <button class="btn block" id="bgBtn" title="needs an internet connection the first time">🪄 Remove background</button>
+        <button class="btn block" id="resetPhoto">↺ Reset photo</button>
+        <button class="btn block" id="changeBtn">Change photo</button>
+      </div>
+    </div>
+
+    <div class="panel" id="layersPanel" style="display:none">
+      <h2><span class="dot"></span>Layers</h2>
+      <div class="ctl">
+        <label>Number of layers <output id="oLayerCount">3</output></label>
+        <input type="range" id="layerCount" min="2" max="6" value="3">
+        <small>More layers = more depth, more cutting. 3 is the sweet spot for portraits.</small>
+      </div>
+      <button class="btn accent block" id="autoBtn">✨ Auto levels</button>
+      <small class="note">Re-picks the value thresholds from the photo's histogram (multi-Otsu). Runs automatically when a photo loads.</small>
+    </div>
+
+    <div class="panel" id="adjustPanel" style="display:none">
+      <h2><span class="dot"></span>Adjust</h2>
+      <div class="ctl">
+        <label>Brightness <output id="oBright">100%</output></label>
+        <input type="range" id="bright" min="40" max="200" value="100">
+      </div>
+      <div class="ctl">
+        <label>Contrast <output id="oContrast">120%</output></label>
+        <input type="range" id="contrast" min="50" max="300" value="120">
+      </div>
+      <div class="ctl">
+        <label>Smoothing <output id="oSmooth">2</output></label>
+        <input type="range" id="smooth" min="0" max="8" value="2">
+        <small>Softens edges so shapes are easier to cut.</small>
+      </div>
+      <label class="check" style="margin-bottom:13px">
+        <input type="checkbox" id="edgeSafe" checked>
+        <span><b>Edge-preserving smoothing</b> — keeps eyes &amp; outlines crisp while cleaning noise (median filter).</span>
+      </label>
+      <div class="ctl">
+        <label>Speck removal <output id="oSpeck">60</output></label>
+        <input type="range" id="speck" min="0" max="400" value="60">
+        <small>Deletes tiny dots &amp; pinholes too small to cut.</small>
+      </div>
+    </div>
+
+    <div class="panel" id="colorPanel" style="display:none">
+      <h2><span class="dot"></span>Paint Colours</h2>
+      <div class="colors" id="colorRows"></div>
+    </div>
+
+    <div class="panel" id="outputPanel" style="display:none">
+      <h2><span class="dot"></span>Cut Safety &amp; Bridges</h2>
+      <div class="ctl">
+        <label>Min feature size <output id="oMinFeat">1 mm</output></label>
+        <input type="range" id="minFeat" min="0" max="4" step="0.25" value="1">
+        <small>Removes slivers thinner than this at the printed size (uses the stencil width below) — they tear when cutting. 0 = off.</small>
+      </div>
+      <label class="check" style="margin-bottom:12px">
+        <input type="checkbox" id="bridges" checked>
+        <span><b>Auto-bridge floating pieces</b> — adds thin ties so loose bits (eyes, highlights) stay attached when the stencil is cut. Ties are routed through areas a <b>later layer sprays over</b>, so most of them vanish in the finished piece.</span>
+      </label>
+      <div class="ctl" id="bridgeWidthRow">
+        <label>Bridge width <output id="oBridgeW">14</output></label>
+        <input type="range" id="bridgeW" min="4" max="40" value="14">
+        <small>Hidden sections are cut at full width; sections that stay visible in the final artwork are cut ~30% thinner.</small>
+      </div>
+      <label class="check">
+        <input type="checkbox" id="showIslands" checked>
+        <span>Highlight <b style="color:#2e7d4f">hidden bridges</b>, <b style="color:#3577c2">visible bridges</b> &amp; <b style="color:var(--warn)">floating pieces</b> in the previews.</span>
+      </label>
+    </div>
+
+    <div class="panel" id="exportPanel" style="display:none">
+      <h2><span class="dot"></span>Print &amp; Cut Files</h2>
+      <label class="check" style="margin-bottom:12px">
+        <input type="checkbox" id="regMarks" checked>
+        <span><b>Registration marks</b> — identical ✚ marks in each corner of all three layers, so the passes line up on the canvas.</span>
+      </label>
+      <div class="ctl">
+        <label for="printMode">Print scale</label>
+        <select id="printMode">
+          <option value="fit">Fit to page — quick &amp; small</option>
+          <option value="actual">Actual size — tiled over pages</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <label for="pageSize">Paper</label>
+        <select id="pageSize">
+          <option value="a4">A4</option>
+          <option value="letter">US Letter</option>
+        </select>
+        <small>Actual size prints at the stencil width below. Print at 100% scale and join sheets on the dashed glue lines.</small>
+      </div>
+      <button class="btn primary block" id="printAll">🖨 Print all stencils</button>
+      <button class="btn block" id="dlAll">⬇ Download all PNGs</button>
+      <div class="subhead">Cutting machines · vector SVG</div>
+      <div class="ctl">
+        <label>Stencil width <output id="oSvgW">200 mm</output></label>
+        <input type="range" id="svgW" min="80" max="600" step="10" value="200">
+        <small>Real-world size the SVG opens at in Illustrator / Cricut Design Space.</small>
+      </div>
+      <div class="ctl">
+        <label for="svgStyle">SVG style</label>
+        <select id="svgStyle">
+          <option value="filled">Filled shapes — Cricut / Silhouette</option>
+          <option value="outline">Hairline outlines — laser cutter</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <label for="svgCorner">Curve style</label>
+        <select id="svgCorner">
+          <option value="smooth">Smoothed curves — cleaner cuts</option>
+          <option value="precise">Precise pixel outlines</option>
+        </select>
+      </div>
+      <button class="btn accent block" id="dlAllSvg">⬇ Download all SVGs</button>
+      <div class="subhead">Project</div>
+      <button class="btn block" id="saveSet">⬇ Save settings file</button>
+      <button class="btn block" id="loadSet">⬆ Load settings file</button>
+      <input type="file" id="setFile" accept=".json,application/json" hidden>
+      <small class="note">Settings, colours, thresholds and manual ties — reload them next session (the photo itself is not saved).</small>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main>
+    <div class="empty" id="empty">
+      <h3>No photo yet</h3>
+      <p>Load a portrait photo on the left to generate your stencil layers —
+         silhouette, mid-tones and details. Each layer gets cut from its own sheet,
+         then sprayed in order: lightest value → middle values → darkest values.</p>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="composite-card">
+        <div class="card-head">
+          <h2>Preview — all layers sprayed</h2>
+          <label class="check" style="font-size:11px">
+            <input type="checkbox" id="sprayPrev">
+            <span><b>Spray simulation</b> — soft edges</span>
+          </label>
+          <span class="sub">what the finished piece will look like</span>
+        </div>
+        <canvas id="compCanvas"></canvas>
+      </div>
+
+      <div class="layers" id="layersWrap">
+        <!-- layer cards injected -->
+      </div>
+
+      <div class="howto">
+        <h2>How to use the templates</h2>
+        <ol>
+          <li><b>Cut.</b> Print each layer and cut out the <b>black</b> areas with a craft knife — or send the SVG files to a laser cutter or Cricut. The black areas are the openings the paint passes through.</li>
+          <li><b>Base pass.</b> Tape layer 1 to your canvas and spray the <b>lightest</b> colour. Lift carefully.</li>
+          <li><b>Build up.</b> Align each next layer on the ✚ corner marks and spray its colour, light to dark. Wait ~10 minutes between coats.</li>
+          <li><b>Detail pass.</b> The last layer is the darkest — spray, lift, and reveal your portrait!</li>
+        </ol>
+      </div>
+    </div>
+  </main>
+</div>
+
+<footer>Runs entirely in your browser — no photos are uploaded anywhere. Works offline once saved.</footer>
+
+<div class="spin" id="spin">⟳ Working…</div>
+<div id="printArea"></div>
+
+<div class="modal" id="cropModal">
+  <div class="modal-box">
+    <h3>Crop photo</h3>
+    <canvas id="cropCanvas"></canvas>
+    <small>Drag a rectangle over the area you want to keep.</small>
+    <div class="modal-btns">
+      <button class="btn" id="cropCancel">Cancel</button>
+      <button class="btn accent" id="cropApply">Apply crop</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ================= PURE ALGOS =================
+   DOM-free helpers, kept together so they can be extracted
+   and unit-tested standalone. */
+
+const PALETTE=["#f5e34d","#f2b517","#e2722a","#d63420","#7c2230","#1a1a1a"];
+
+function layerMetas(n){
+  const arr=[];
+  for(let i=0;i<n;i++){
+    const name = i===0 ? "Silhouette" : i===n-1 ? "Details" : (n>3 ? `Mid-tones ${i}` : "Mid-tones");
+    const hint = i===0 ? "base layer · lightest values" : i===n-1 ? "final pass · darkest values" : `pass ${i+1} · middle values`;
+    arr.push({name,hint});
+  }
+  return arr;
+}
+function defaultThresholds(n){
+  const out=[];
+  for(let k=0;k<n;k++) out.push(Math.round(205-k*135/(n-1)));
+  return out;
+}
+function defaultColors(n){
+  if(n>=6) return PALETTE.slice();
+  const out=[];
+  for(let k=0;k<n;k++) out.push(PALETTE[1+Math.round(k*4/(n-1))]);
+  return out;
+}
+
+/* multi-level Otsu: split a 256-bin histogram into K classes by maximising
+   between-class variance; returns the K-1 cut bins, ascending */
+function otsuCuts(hist,K){
+  const P=new Float64Array(257), S=new Float64Array(257);
+  for(let i=0;i<256;i++){ P[i+1]=P[i]+hist[i]; S[i+1]=S[i]+hist[i]*i; }
+  const Q=(a,b)=>{ const w=P[b+1]-P[a]; if(w<=0) return 0; const s=S[b+1]-S[a]; return s*s/w; };
+  let prev=new Float64Array(256);
+  for(let t=0;t<256;t++) prev[t]=Q(0,t);
+  const choice=[];
+  for(let c=2;c<=K;c++){
+    const cur=new Float64Array(256), ch=new Int16Array(256);
+    for(let t=0;t<256;t++){
+      let best=-1,bi=0;
+      for(let s=0;s<t;s++){ const v=prev[s]+Q(s+1,t); if(v>best){best=v;bi=s;} }
+      cur[t]=best; ch[t]=bi;
+    }
+    choice[c]=ch; prev=cur;
+  }
+  let t=255; const cuts=[];
+  for(let c=K;c>=2;c--){ t=choice[c][t]; cuts.unshift(t); }
+  return cuts;
+}
+
+/* sliding-histogram median filter (Huang) — edge-preserving smoothing */
+function medianFilter(g,W,H,r){
+  if(r<1) return;
+  const out=new Uint8Array(W*H);
+  const hist=new Int32Array(256);
+  for(let y=0;y<H;y++){
+    hist.fill(0);
+    const y0=Math.max(0,y-r), y1=Math.min(H-1,y+r);
+    let cnt=0;
+    const xInit=Math.min(W-1,r);
+    for(let yy=y0;yy<=y1;yy++){ const row=yy*W; for(let xx=0;xx<=xInit;xx++){ hist[g[row+xx]]++; cnt++; } }
+    let m=0, lt=0;                       // lt = #values < m
+    for(let x=0;x<W;x++){
+      if(x>0){
+        const xa=x+r, xr=x-r-1;
+        if(xa<W)  for(let yy=y0;yy<=y1;yy++){ const v=g[yy*W+xa]; hist[v]++; cnt++; if(v<m) lt++; }
+        if(xr>=0) for(let yy=y0;yy<=y1;yy++){ const v=g[yy*W+xr]; hist[v]--; cnt--; if(v<m) lt--; }
+      }
+      const half=(cnt-1)>>1;
+      while(lt>half){ m--; lt-=hist[m]; }
+      while(lt+hist[m]<=half){ lt+=hist[m]; m++; }
+      out[y*W+x]=m;
+    }
+  }
+  g.set(out);
+}
+
+/* 3-4 chamfer distance (×3 scaled) to the nearest pixel with mask===val */
+function distTo(mask,W,H,val){
+  const INF=1<<29, N=W*H;
+  const d=new Int32Array(N);
+  for(let i=0;i<N;i++) d[i]= mask[i]===val ? 0 : INF;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const p=y*W+x; let v=d[p];
+    if(x>0      && d[p-1]+3<v)   v=d[p-1]+3;
+    if(y>0){
+      if(d[p-W]+3<v)             v=d[p-W]+3;
+      if(x>0   && d[p-W-1]+4<v)  v=d[p-W-1]+4;
+      if(x<W-1 && d[p-W+1]+4<v)  v=d[p-W+1]+4;
+    }
+    d[p]=v;
+  }
+  for(let y=H-1;y>=0;y--)for(let x=W-1;x>=0;x--){
+    const p=y*W+x; let v=d[p];
+    if(x<W-1    && d[p+1]+3<v)   v=d[p+1]+3;
+    if(y<H-1){
+      if(d[p+W]+3<v)             v=d[p+W]+3;
+      if(x<W-1 && d[p+W+1]+4<v)  v=d[p+W+1]+4;
+      if(x>0   && d[p+W-1]+4<v)  v=d[p+W-1]+4;
+    }
+    d[p]=v;
+  }
+  return d;
+}
+
+/* enforce a minimum feature size: close (fuse hairline white slivers that
+   tear when cut), then open (drop hairline black slits that can't be cut) */
+function morphMask(mask,W,H,rpx){
+  const r3=Math.round(rpx*3);
+  if(r3<3) return;
+  const N=W*H;
+  const dil=()=>{ const d=distTo(mask,W,H,1); for(let i=0;i<N;i++) if(d[i]<=r3) mask[i]=1; };
+  const ero=()=>{ const d=distTo(mask,W,H,0); for(let i=0;i<N;i++) if(d[i]<=r3) mask[i]=0; };
+  dil(); ero();   // close black
+  ero(); dil();   // open black
+}
+
+/* rasterise one manual tie stroke into mask/bridgeMap */
+function applyOp(op,mask,bridgeMap,W,H,gray,coverT){
+  const r=Math.max(1,Math.round((op.w||14)/2));
+  const dx=op.x2-op.x1, dy=op.y2-op.y1;
+  const steps=Math.max(1,Math.ceil(Math.hypot(dx,dy)));
+  for(let s=0;s<=steps;s++){
+    const cx=Math.round(op.x1+dx*s/steps), cy=Math.round(op.y1+dy*s/steps);
+    for(let oy=-r;oy<=r;oy++){
+      const yy=cy+oy; if(yy<0||yy>=H) continue;
+      for(let ox=-r;ox<=r;ox++){
+        const xx=cx+ox; if(xx<0||xx>=W) continue;
+        if(ox*ox+oy*oy>r*r) continue;
+        const q=yy*W+xx;
+        if(op.tool==="add"){ if(mask[q]){ mask[q]=0; bridgeMap[q]=gray[q]<coverT?1:2; } }
+        else if(bridgeMap[q]){ bridgeMap[q]=0; mask[q]=1; }
+      }
+    }
+  }
+}
+
+/* closed Catmull-Rom → cubic Bézier path for smoother laser/Cricut cuts */
+function smoothLoop(s){
+  const f=v=>Math.round(v*10)/10;
+  const n=s.length;
+  let d="M"+f(s[0][0])+" "+f(s[0][1]);
+  for(let i=0;i<n;i++){
+    const p0=s[(i+n-1)%n], p1=s[i], p2=s[(i+1)%n], p3=s[(i+2)%n];
+    d+="C"+f(p1[0]+(p2[0]-p0[0])/6)+" "+f(p1[1]+(p2[1]-p0[1])/6)
+      +" "+f(p2[0]-(p3[0]-p1[0])/6)+" "+f(p2[1]-(p3[1]-p1[1])/6)
+      +" "+f(p2[0])+" "+f(p2[1]);
+  }
+  return d+"Z";
+}
+
+/* split a wmm×hmm stencil into printable tiles with glue overlap (all mm) */
+function tileLayout(wmm,hmm,pagW,pagH,margin,overlap){
+  const aw=pagW-2*margin, ah=pagH-2*margin;
+  const stepW=aw-overlap, stepH=ah-overlap;
+  const cols=wmm<=aw?1:Math.ceil((wmm-overlap)/stepW);
+  const rows=hmm<=ah?1:Math.ceil((hmm-overlap)/stepH);
+  const tiles=[];
+  for(let ry=0;ry<rows;ry++)for(let cx=0;cx<cols;cx++){
+    const x0=cx*stepW, y0=ry*stepH;
+    tiles.push({col:cx,row:ry,x0,y0,w:Math.min(aw,wmm-x0),h:Math.min(ah,hmm-y0)});
+  }
+  return {cols,rows,tiles};
+}
+
+/* ================= APP / state ================= */
+const MAX_SIDE = 1400;
+
+const state = {
+  img:null, origImg:null, W:0, H:0,
+  gray:null,                       // Uint8Array luminance after adjust
+  layerCount:3,
+  masks:[null,null,null],          // Uint8Array 1=black(cut)
+  islands:[null,null,null],        // Uint8Array 1=floating white piece
+  islandCounts:[0,0,0],
+  bridgeMaps:[null,null,null],
+  bridgeCounts:[0,0,0],
+  bridgeHidden:[0,0,0],            // bridge px later layers repaint
+  bridgeExposed:[0,0,0],           // bridge px visible in the final piece
+  manualOps:[[],[],[]],            // user-drawn add/erase tie strokes per layer
+  thresholds:defaultThresholds(3),
+  colors:defaultColors(3),
+  paper:"#ffffff",
+  bright:100, contrast:120, smooth:2, edgeSafe:true, speck:60,
+  minFeature:1,                    // mm, 0 = off
+  showIslands:true,
+  bridges:true, bridgeWidth:14,
+  regMarks:true,
+  svgWidthMM:200, svgStyle:"filled", svgCorner:"smooth",
+  printMode:"fit", pageSize:"a4",
+  sprayPreview:false,
+  pendingAuto:false                // run auto-Otsu thresholds on next rebuild
+};
+let META=layerMetas(3);
+const edit={layer:-1,tool:"add",active:false,sx:0,sy:0};
+
+const $ = id => document.getElementById(id);
+const work = document.createElement("canvas");
+const layerCanvases = [];
+let layerStatEls = [], layerOutEls = [], debLayer = [];
+const allLayers = ()=>Array.from({length:state.layerCount},(_,i)=>i);
+
+/* ================= UI build ================= */
+function canvasPos(c,e){
+  const r=c.getBoundingClientRect();
+  return [(e.clientX-r.left)*c.width/r.width, (e.clientY-r.top)*c.height/r.height];
+}
+function attachEditHandlers(c,i){
+  c.addEventListener("pointerdown",e=>{
+    if(edit.layer!==i || !state.img) return;
+    e.preventDefault(); c.setPointerCapture(e.pointerId);
+    [edit.sx,edit.sy]=canvasPos(c,e); edit.active=true;
+  });
+  c.addEventListener("pointermove",e=>{
+    if(!edit.active||edit.layer!==i) return;
+    const [x,y]=canvasPos(c,e);
+    renderLayer(i);
+    const ctx=c.getContext("2d");
+    ctx.save();
+    ctx.lineCap="round"; ctx.lineWidth=state.bridgeWidth;
+    ctx.strokeStyle= edit.tool==="add" ? "rgba(83,141,213,.85)" : "rgba(214,52,32,.85)";
+    ctx.beginPath(); ctx.moveTo(edit.sx,edit.sy); ctx.lineTo(x,y); ctx.stroke();
+    ctx.restore();
+  });
+  c.addEventListener("pointerup",e=>{
+    if(!edit.active||edit.layer!==i) return;
+    edit.active=false;
+    const [x,y]=canvasPos(c,e);
+    state.manualOps[i].push({tool:edit.tool, x1:Math.round(edit.sx), y1:Math.round(edit.sy),
+                             x2:Math.round(x), y2:Math.round(y), w:state.bridgeWidth});
+    rebuildLayer(i);
+  });
+}
+function setEditLayer(i){
+  edit.layer=i; edit.active=false;
+  for(let k=0;k<state.layerCount;k++){
+    const tb=$("edit"+k), btn=document.querySelector(`[data-edit="${k}"]`), cv=layerCanvases[k];
+    if(tb) tb.style.display = k===i ? "flex" : "none";
+    if(btn) btn.classList.toggle("on",k===i);
+    if(cv) cv.classList.toggle("editing",k===i);
+  }
+}
+function buildLayerCards(){
+  const wrap = $("layersWrap");
+  wrap.innerHTML="";
+  META=layerMetas(state.layerCount);
+  layerCanvases.length=0;
+  META.forEach((m,i)=>{
+    const card = document.createElement("div");
+    card.className = "layer-card";
+    card.innerHTML = `
+      <div class="lc-head">
+        <div class="lc-num" id="num${i}">${i+1}</div>
+        <h3>${m.name}<small>${m.hint}</small></h3>
+      </div>
+      <div class="ctl">
+        <label>Value threshold <output id="tOut${i}">${state.thresholds[i]}</output></label>
+        <input type="range" id="t${i}" min="5" max="250" value="${state.thresholds[i]}">
+      </div>
+      <canvas id="lc${i}"></canvas>
+      <div class="lc-stats"><span id="ink${i}"></span><span id="isl${i}"></span></div>
+      <div class="lc-btns">
+        <button class="btn" data-dl="${i}">⬇ PNG</button>
+        <button class="btn" data-svg="${i}">⬇ SVG</button>
+        <button class="btn" data-pr="${i}">🖨 Print</button>
+        <button class="btn" data-edit="${i}">✏ Ties</button>
+      </div>
+      <div class="lc-edit" id="edit${i}">
+        <button class="btn ${edit.tool==="add"?"on":""}" data-tool="add">＋ Add tie</button>
+        <button class="btn ${edit.tool==="erase"?"on":""}" data-tool="erase">－ Erase</button>
+        <button class="btn" data-clear="${i}">✕ Clear</button>
+        <small>Drag on the stencil above to draw or erase a tie at the current bridge width.</small>
+      </div>`;
+    wrap.appendChild(card);
+    layerCanvases[i] = card.querySelector(`#lc${i}`);
+    attachEditHandlers(layerCanvases[i],i);
+  });
+  layerStatEls=[]; layerOutEls=[]; debLayer=[];
+  for(let i=0;i<state.layerCount;i++){
+    layerStatEls.push({ink:$("ink"+i), isl:$("isl"+i)});
+    layerOutEls.push($("tOut"+i));
+    debLayer.push(debounce(()=>rebuildLayersUpTo(i),120));
+    $("t"+i).addEventListener("input", e=>{
+      state.thresholds[i]=+e.target.value;
+      layerOutEls[i].textContent = e.target.value;
+      if(state.img) debLayer[i]();
+    });
+  }
+}
+function buildColorRows(){
+  const n=state.layerCount, wrap=$("colorRows");
+  wrap.innerHTML=`<div class="crow"><input type="color" id="cPaper" value="${state.paper}"><div><div class="cl">Canvas</div><div class="cs">your paper / board</div></div></div>`;
+  const ord=["first","second","third","fourth","fifth","sixth"];
+  for(let i=0;i<n;i++){
+    const tag = i===0 ? "lightest" : i===n-1 ? "darkest" : "darker";
+    wrap.insertAdjacentHTML("beforeend",
+      `<div class="crow"><input type="color" id="c${i}" value="${state.colors[i]}"><div><div class="cl">Layer ${i+1} — ${tag}</div><div class="cs">sprayed ${ord[i]}</div></div></div>`);
+  }
+  $("cPaper").addEventListener("input", e=>{ state.paper=e.target.value; if(state.img) renderComposite(); });
+  for(let i=0;i<n;i++) $("c"+i).addEventListener("input", e=>{
+    state.colors[i]=e.target.value;
+    if(state.img){ renderComposite(); paintBadges(); }
+  });
+}
+
+/* ================= image loading ================= */
+const fileInput = $("file"), drop = $("drop");
+
+const imgDims = img => [img.naturalWidth||img.width, img.naturalHeight||img.height];
+
+function loadFile(file){
+  if(!file || !file.type.startsWith("image/")) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = ()=>{ URL.revokeObjectURL(url); setImage(img,true); };
+  img.src = url;
+}
+function setImage(src,isNew){
+  state.img = src;
+  if(isNew){
+    state.origImg = src;
+    state.manualOps = Array.from({length:state.layerCount},()=>[]);
+  }
+  state.pendingAuto = true;
+  $("thumb").src = url2thumb(src);
+  $("thumbwrap").style.display = "block";
+  drop.style.display = "none";
+  ["layersPanel","adjustPanel","colorPanel","outputPanel","exportPanel"].forEach(id=>$(id).style.display="block");
+  $("empty").style.display = "none";
+  $("stage").style.display = "block";
+  fullRebuild();
+}
+function url2thumb(img){
+  const [iw,ih]=imgDims(img);
+  const c = document.createElement("canvas");
+  const s = Math.min(1, 260/iw);
+  c.width = Math.max(1,Math.round(iw*s)); c.height = Math.max(1,Math.round(ih*s));
+  c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+  return c.toDataURL("image/jpeg",.8);
+}
+
+/* ----- photo tools: rotate / flip / crop / background removal ----- */
+function replacePhoto(c){                 // dimensions changed → manual ties invalid
+  state.manualOps = Array.from({length:state.layerCount},()=>[]);
+  setImage(c,false);
+}
+function transformImg(setup){
+  if(!state.img) return;
+  const img=state.img, [iw,ih]=imgDims(img);
+  const c=document.createElement("canvas");
+  const ctx=setup(c,iw,ih);
+  ctx.drawImage(img,0,0);
+  replacePhoto(c);
+}
+$("rotR").addEventListener("click", ()=>transformImg((c,iw,ih)=>{
+  c.width=ih; c.height=iw;
+  const x=c.getContext("2d"); x.translate(ih,0); x.rotate(Math.PI/2); return x;
+}));
+$("rotL").addEventListener("click", ()=>transformImg((c,iw,ih)=>{
+  c.width=ih; c.height=iw;
+  const x=c.getContext("2d"); x.translate(0,iw); x.rotate(-Math.PI/2); return x;
+}));
+$("flipH").addEventListener("click", ()=>transformImg((c,iw,ih)=>{
+  c.width=iw; c.height=ih;
+  const x=c.getContext("2d"); x.translate(iw,0); x.scale(-1,1); return x;
+}));
+$("resetPhoto").addEventListener("click", ()=>{ if(state.origImg) replacePhoto(state.origImg); });
+
+/* crop modal */
+let cropSel=null, cropScale=1, cropDrag=false;
+function drawCrop(){
+  const c=$("cropCanvas"), ctx=c.getContext("2d");
+  ctx.drawImage(state.img,0,0,c.width,c.height);
+  if(cropSel){
+    const x=Math.min(cropSel.ax,cropSel.bx), y=Math.min(cropSel.ay,cropSel.by);
+    const w=Math.abs(cropSel.bx-cropSel.ax), h=Math.abs(cropSel.by-cropSel.ay);
+    ctx.fillStyle="rgba(22,20,15,.55)";
+    ctx.fillRect(0,0,c.width,y); ctx.fillRect(0,y+h,c.width,c.height-y-h);
+    ctx.fillRect(0,y,x,h); ctx.fillRect(x+w,y,c.width-x-w,h);
+    ctx.strokeStyle="#f2b517"; ctx.setLineDash([6,4]); ctx.lineWidth=2;
+    ctx.strokeRect(x,y,w,h); ctx.setLineDash([]);
+  }
+}
+$("cropBtn").addEventListener("click", ()=>{
+  if(!state.img) return;
+  const [iw,ih]=imgDims(state.img);
+  const c=$("cropCanvas");
+  cropScale=Math.min(Math.min(860,window.innerWidth*.86)/iw, window.innerHeight*.62/ih, 1);
+  c.width=Math.max(1,Math.round(iw*cropScale)); c.height=Math.max(1,Math.round(ih*cropScale));
+  cropSel=null; drawCrop();
+  $("cropModal").classList.add("on");
+});
+$("cropCanvas").addEventListener("pointerdown", e=>{
+  cropDrag=true; e.target.setPointerCapture(e.pointerId);
+  const [x,y]=canvasPos(e.target,e);
+  cropSel={ax:x,ay:y,bx:x,by:y}; drawCrop();
+});
+$("cropCanvas").addEventListener("pointermove", e=>{
+  if(!cropDrag||!cropSel) return;
+  [cropSel.bx,cropSel.by]=canvasPos(e.target,e); drawCrop();
+});
+$("cropCanvas").addEventListener("pointerup", ()=>{ cropDrag=false; });
+$("cropCancel").addEventListener("click", ()=>$("cropModal").classList.remove("on"));
+$("cropApply").addEventListener("click", ()=>{
+  if(cropSel){
+    const x=Math.min(cropSel.ax,cropSel.bx), y=Math.min(cropSel.ay,cropSel.by);
+    const w=Math.abs(cropSel.bx-cropSel.ax), h=Math.abs(cropSel.by-cropSel.ay);
+    if(w>8 && h>8){
+      const sx=Math.round(x/cropScale), sy=Math.round(y/cropScale);
+      const sw=Math.max(1,Math.round(w/cropScale)), sh=Math.max(1,Math.round(h/cropScale));
+      const out=document.createElement("canvas");
+      out.width=sw; out.height=sh;
+      out.getContext("2d").drawImage(state.img,sx,sy,sw,sh,0,0,sw,sh);
+      replacePhoto(out);
+    }
+  }
+  $("cropModal").classList.remove("on");
+});
+
+/* AI background removal — MediaPipe selfie segmentation, lazy-loaded from CDN */
+let segmenter=null;
+async function removeBackground(){
+  if(!state.img) return;
+  const btn=$("bgBtn");
+  btn.disabled=true; const old=btn.textContent; btn.textContent="… loading AI model";
+  try{
+    if(!window.SelfieSegmentation){
+      await new Promise((res,rej)=>{
+        const s=document.createElement("script");
+        s.src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js";
+        s.onload=res;
+        s.onerror=()=>rej(new Error("could not load the AI model — check your internet connection"));
+        document.head.appendChild(s);
+      });
+    }
+    if(!segmenter){
+      segmenter=new SelfieSegmentation({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${f}`});
+      segmenter.setOptions({modelSelection:1});
+    }
+    btn.textContent="… separating person";
+    const [iw,ih]=imgDims(state.img);
+    const src=document.createElement("canvas"); src.width=iw; src.height=ih;
+    const sctx=src.getContext("2d",{willReadFrequently:true});
+    sctx.drawImage(state.img,0,0);
+    const result=await new Promise((res,rej)=>{
+      segmenter.onResults(res);
+      segmenter.send({image:src}).catch(rej);
+    });
+    const mc=document.createElement("canvas"); mc.width=iw; mc.height=ih;
+    const mctx=mc.getContext("2d",{willReadFrequently:true});
+    mctx.drawImage(result.segmentationMask,0,0,iw,ih);
+    const md=mctx.getImageData(0,0,iw,ih).data;
+    const sd=sctx.getImageData(0,0,iw,ih);
+    for(let j=0;j<md.length;j+=4){
+      if(md[j]<128){ sd.data[j]=sd.data[j+1]=sd.data[j+2]=255; }   // background → white
+    }
+    const out=document.createElement("canvas"); out.width=iw; out.height=ih;
+    out.getContext("2d").putImageData(sd,0,0);
+    setImage(out,false);            // same dimensions, manual ties stay valid
+  }catch(err){
+    alert("Background removal failed: "+err.message);
+  }
+  btn.disabled=false; btn.textContent=old;
+}
+$("bgBtn").addEventListener("click", removeBackground);
+
+drop.addEventListener("click", ()=>fileInput.click());
+drop.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" ") fileInput.click(); });
+$("changeBtn").addEventListener("click", ()=>fileInput.click());
+fileInput.addEventListener("change", e=>loadFile(e.target.files[0]));
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop", e=>loadFile(e.dataTransfer.files[0]));
+window.addEventListener("paste", e=>{
+  const item = [...(e.clipboardData?.items||[])].find(i=>i.type.startsWith("image/"));
+  if(item) loadFile(item.getAsFile());
+});
+
+/* ================= processing ================= */
+const spin = $("spin");
+let busyTimer = null;
+function busy(on){
+  clearTimeout(busyTimer);
+  if(on) busyTimer = setTimeout(()=>spin.classList.add("on"), 120);
+  else spin.classList.remove("on");
+}
+
+function preprocess(){
+  const img = state.img;
+  const [iw,ih]=imgDims(img);
+  const s = Math.min(1, MAX_SIDE/Math.max(iw,ih));
+  const W = Math.max(1,Math.round(iw*s));
+  const H = Math.max(1,Math.round(ih*s));
+  state.W=W; state.H=H;
+  work.width=W; work.height=H;
+  const ctx = work.getContext("2d",{willReadFrequently:true});
+  ctx.filter = "none";
+  ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H);
+  const blur = (!state.edgeSafe && state.smooth>0) ? ` blur(${state.smooth}px)` : "";
+  ctx.filter = `grayscale(1) brightness(${state.bright}%) contrast(${state.contrast}%)${blur}`;
+  ctx.drawImage(img,0,0,W,H);
+  ctx.filter = "none";
+  const d = ctx.getImageData(0,0,W,H).data;
+  const g = new Uint8Array(W*H);
+  for(let i=0,j=0;i<g.length;i++,j+=4) g[i]=d[j];
+  if(state.edgeSafe && state.smooth>0) medianFilter(g,W,H,state.smooth);
+  state.gray = g;
+}
+
+/* pick thresholds from the photo's histogram: N+1 Otsu classes
+   (canvas + one per layer), cuts mapped to descending thresholds */
+function autoThresholds(){
+  if(!state.gray) return;
+  const hist=new Float64Array(256);
+  const g=state.gray;
+  for(let i=0;i<g.length;i++) hist[g[i]]++;
+  const n=state.layerCount;
+  const cuts=otsuCuts(hist,n+1);
+  for(let i=0;i<n;i++) state.thresholds[i]=Math.max(5,Math.min(250,cuts[n-1-i]+1));
+}
+function syncThresholdSliders(){
+  for(let i=0;i<state.layerCount;i++){
+    const el=$("t"+i); if(!el) continue;
+    el.value=state.thresholds[i];
+    layerOutEls[i].textContent=state.thresholds[i];
+  }
+}
+
+function buildMask(layer){
+  const {gray,W,H} = state, t = state.thresholds[layer], n = state.layerCount;
+  const N = W*H;
+  const mask = new Uint8Array(N);
+  for(let i=0;i<N;i++) mask[i] = gray[i] < t ? 1 : 0;
+  if(state.minFeature>0) morphMask(mask,W,H,state.minFeature*(W/state.svgWidthMM)/2);
+  if(state.speck>0) despeckle(mask,W,H,state.speck);
+  let res = findIslands(mask,W,H);
+  // a pixel is "covered" when any LATER (darker) layer sprays it again —
+  // ties routed through covered pixels disappear in the finished piece
+  let coverT = 0;
+  for(let j=layer+1;j<n;j++) coverT = Math.max(coverT, state.thresholds[j]);
+  const bridgeMap = new Uint8Array(N);
+  let bridgeCount = 0;
+  if(state.bridges && res.count){
+    bridgeCount = addBridges(mask,res,bridgeMap,W,H,state.bridgeWidth,gray,coverT).count;
+  }
+  for(const op of state.manualOps[layer]||[]) applyOp(op,mask,bridgeMap,W,H,gray,coverT);
+  res = findIslands(mask,W,H);   // anything still floating after bridging?
+  let hid=0, exp=0;
+  for(let i=0;i<N;i++){ if(bridgeMap[i]===1) hid++; else if(bridgeMap[i]===2) exp++; }
+  state.masks[layer]=mask;
+  state.islands[layer]=res.map;
+  state.islandCounts[layer]=res.count;
+  state.bridgeMaps[layer]=bridgeMap;
+  state.bridgeCounts[layer]=bridgeCount;
+  state.bridgeHidden[layer]=hid;
+  state.bridgeExposed[layer]=exp;
+}
+
+/* remove connected blobs (black or white) smaller than minSize */
+function despeckle(mask,W,H,minSize){
+  const N=W*H;
+  const lab = new Int32Array(N);
+  const stack = new Int32Array(N);
+  const comp = new Int32Array(N);
+  let cur=0;
+  for(let seed=0;seed<N;seed++){
+    if(lab[seed]) continue;
+    cur++;
+    const v = mask[seed];
+    let sp=0, cn=0;
+    stack[sp++]=seed; lab[seed]=cur;
+    while(sp){
+      const p = stack[--sp];
+      comp[cn++]=p;
+      const x=p%W;
+      if(x>0       && !lab[p-1] && mask[p-1]===v){lab[p-1]=cur;stack[sp++]=p-1;}
+      if(x<W-1     && !lab[p+1] && mask[p+1]===v){lab[p+1]=cur;stack[sp++]=p+1;}
+      if(p>=W      && !lab[p-W] && mask[p-W]===v){lab[p-W]=cur;stack[sp++]=p-W;}
+      if(p<N-W     && !lab[p+W] && mask[p+W]===v){lab[p+W]=cur;stack[sp++]=p+W;}
+    }
+    if(cn<minSize){
+      const nv = v?0:1;
+      for(let k=0;k<cn;k++) mask[comp[k]]=nv;
+    }
+  }
+}
+
+/* white regions not connected to the border = pieces that fall out when cut */
+function findIslands(mask,W,H){
+  const N=W*H;
+  const seen = new Uint8Array(N);
+  const stack = new Int32Array(N);
+  let sp=0;
+  const push = p=>{ if(!seen[p] && !mask[p]){ seen[p]=1; stack[sp++]=p; } };
+  for(let x=0;x<W;x++){ push(x); push(N-W+x); }
+  for(let y=0;y<H;y++){ push(y*W); push(y*W+W-1); }
+  while(sp){
+    const p=stack[--sp], x=p%W;
+    if(x>0)   push(p-1);
+    if(x<W-1) push(p+1);
+    if(p>=W)  push(p-W);
+    if(p<N-W) push(p+W);
+  }
+  const map = new Uint8Array(N);
+  const regions = [];
+  for(let i=0;i<N;i++){
+    if(!mask[i] && !seen[i] && !map[i]){
+      const reg=[];
+      let s2=0; stack[s2++]=i; map[i]=1;
+      while(s2){
+        const p=stack[--s2], x=p%W;
+        reg.push(p);
+        if(x>0   && !mask[p-1] && !map[p-1]){map[p-1]=1;stack[s2++]=p-1;}
+        if(x<W-1 && !mask[p+1] && !map[p+1]){map[p+1]=1;stack[s2++]=p+1;}
+        if(p>=W  && !mask[p-W] && !map[p-W]){map[p-W]=1;stack[s2++]=p-W;}
+        if(p<N-W && !mask[p+W] && !map[p+W]){map[p+W]=1;stack[s2++]=p+W;}
+      }
+      regions.push(reg);
+    }
+  }
+  return {map,count:regions.length,regions,seen};
+}
+
+/* connect each floating white region to the nearest safe (border-connected)
+   white area with a thin white tie cut through the black.
+   Weighted shortest path (Dial's algorithm): black pixels that a LATER layer
+   sprays over again (gray < coverT) are cheap, black pixels that stay visible
+   in the finished piece are expensive — so ties detour through areas the next
+   colour repaints and vanish in the final artwork. Sections that do stay
+   visible are stamped thinner. bridgeMap: 1 = hidden, 2 = visible. */
+function addBridges(mask,isl,bridgeMap,W,H,width,gray,coverT){
+  const N=W*H;
+  const r=Math.max(1,Math.round(width/2));
+  const rThin=Math.max(2,Math.round(r*0.7));
+  const COST_WHITE=1, COST_HIDDEN=2, COST_EXPOSED=24;
+  const NB=COST_EXPOSED+1;          // bucket ring size
+  const parent=new Int32Array(N);
+  const dist=new Int32Array(N);
+  const out={count:0,hiddenPx:0,exposedPx:0};
+  const stamp=p=>{
+    const rr = gray[p]<coverT ? r : rThin;
+    const cx=p%W, cy=(p-cx)/W;
+    for(let dy=-rr;dy<=rr;dy++){
+      const yy=cy+dy; if(yy<0||yy>=H) continue;
+      for(let dx=-rr;dx<=rr;dx++){
+        const xx=cx+dx; if(xx<0||xx>=W) continue;
+        if(dx*dx+dy*dy>rr*rr) continue;
+        const q=yy*W+xx;
+        if(mask[q]){
+          mask[q]=0;
+          if(gray[q]<coverT){ bridgeMap[q]=1; out.hiddenPx++; }
+          else              { bridgeMap[q]=2; out.exposedPx++; }
+        }
+      }
+    }
+  };
+  const cost=q=> mask[q] ? (gray[q]<coverT ? COST_HIDDEN : COST_EXPOSED) : COST_WHITE;
+  for(const reg of isl.regions){
+    parent.fill(-1); dist.fill(-1);
+    const buckets=Array.from({length:NB},()=>[]);
+    for(let k=0;k<reg.length;k++){ const p=reg[k]; parent[p]=p; dist[p]=0; buckets[0].push(p); }
+    let d=0, pending=reg.length, found=-1;
+    const relax=(nb,p)=>{
+      const nd=d+cost(nb);
+      if(dist[nb]===-1 || nd<dist[nb]){ dist[nb]=nd; parent[nb]=p; buckets[nd%NB].push(nb); pending++; }
+    };
+    while(pending>0 && found<0){
+      const b=buckets[d%NB];
+      if(!b.length){ d++; continue; }
+      const p=b.pop(); pending--;
+      if(dist[p]!==d) continue;                 // stale queue entry
+      if(!mask[p] && (isl.seen[p]||bridgeMap[p])){ found=p; break; }
+      const x=p%W;
+      if(x>0)   relax(p-1,p);
+      if(x<W-1) relax(p+1,p);
+      if(p>=W)  relax(p-W,p);
+      if(p<N-W) relax(p+W,p);
+    }
+    if(found>=0){
+      out.count++;
+      let p=found;
+      while(parent[p]!==p){ stamp(p); p=parent[p]; }
+      stamp(p);
+    }
+  }
+  return out;
+}
+
+/* ================= registration marks ================= */
+function markGeom(){
+  const {W,H}=state;
+  const len=Math.round(Math.min(W,H)*0.05);
+  const th=Math.max(3,Math.round(len/5));
+  const m=Math.round(len*0.9);   // inset of mark centre from each corner
+  return {len,th,pts:[[m,m],[W-m,m],[m,H-m],[W-m,H-m]]};
+}
+function drawMarks(ctx){
+  const g=markGeom();
+  ctx.fillStyle="#16140f";
+  for(const [cx,cy] of g.pts){
+    ctx.fillRect(cx-g.th/2, cy-g.len/2, g.th, g.len);
+    ctx.fillRect(cx-g.len/2, cy-g.th/2, g.len, g.th);
+  }
+}
+function stampMarks(mask){       // burn ✚ marks into a mask copy for vector tracing
+  const {W,H}=state;
+  const g=markGeom();
+  const rect=(x0,y0,w,h)=>{
+    for(let y=Math.max(0,y0);y<Math.min(H,y0+h);y++)
+      for(let x=Math.max(0,x0);x<Math.min(W,x0+w);x++) mask[y*W+x]=1;
+  };
+  for(const [cx,cy] of g.pts){
+    rect(Math.round(cx-g.th/2), Math.round(cy-g.len/2), g.th, g.len);
+    rect(Math.round(cx-g.len/2), Math.round(cy-g.th/2), g.len, g.th);
+  }
+  return mask;
+}
+
+/* ================= rendering ================= */
+function hex2rgb(h){
+  return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+}
+
+function renderLayer(i, clean=false, targetCanvas=null){
+  const {W,H} = state;
+  const mask = state.masks[i], isl = state.islands[i];
+  const c = targetCanvas || layerCanvases[i];
+  c.width=W; c.height=H;
+  const ctx = c.getContext("2d");
+  const id = ctx.createImageData(W,H);
+  const d = id.data;
+  const br = state.bridgeMaps[i];
+  const showHl = state.showIslands && !clean;
+  for(let p=0,j=4*0;p<mask.length;p++,j=p*4){
+    if(mask[p]){ d[j]=22;d[j+1]=20;d[j+2]=15; }
+    else if(showHl && isl[p]){ d[j]=240;d[j+1]=70;d[j+2]=60; }
+    else if(showHl && br && br[p]===1){ d[j]=58;d[j+1]=148;d[j+2]=92; }
+    else if(showHl && br && br[p]){ d[j]=83;d[j+1]=141;d[j+2]=213; }
+    else { d[j]=255;d[j+1]=255;d[j+2]=255; }
+    d[j+3]=255;
+  }
+  ctx.putImageData(id,0,0);
+  if(state.regMarks) drawMarks(ctx);
+  return c;
+}
+
+function renderStats(i){
+  const mask = state.masks[i];
+  let ink=0; for(let p=0;p<mask.length;p++) ink+=mask[p];
+  layerStatEls[i].ink.textContent = "ink " + Math.round(100*ink/mask.length) + "%";
+  const n = state.islandCounts[i], b = state.bridgeCounts[i];
+  const adds = (state.manualOps[i]||[]).filter(o=>o.tool==="add").length;
+  const ties = b+adds;
+  if(state.bridges || adds){
+    const hid=state.bridgeHidden[i], exp=state.bridgeExposed[i], tot=hid+exp;
+    const pct=tot?Math.round(100*hid/tot):0;
+    const note = !ties ? "" : i===state.layerCount-1
+      ? " · top layer, cut thin"
+      : ` · ${pct}% repainted later`;
+    layerStatEls[i].isl.innerHTML = n
+      ? `<span class="lc-warn">⚠ ${n} piece${n>1?"s":""} still floating — widen bridges or add a tie</span>`
+      : ties
+        ? `<span class="lc-ok">✔ ${ties} tie${ties>1?"s":""}${note}</span>`
+        : `<span class="lc-ok">✔ no ties needed</span>`;
+  } else {
+    layerStatEls[i].isl.innerHTML = n
+      ? `<span class="lc-warn">⚠ ${n} floating piece${n>1?"s":""} — bridge with a pen</span>`
+      : `<span class="lc-ok">✔ no floating pieces</span>`;
+  }
+}
+
+function renderComposite(){
+  const {W,H} = state, n = state.layerCount;
+  const c = $("compCanvas");
+  c.width=W; c.height=H;
+  const ctx = c.getContext("2d");
+  if(state.sprayPreview){ renderCompositeSpray(ctx); return; }
+  const id = ctx.createImageData(W,H);
+  const d = id.data;
+  const paper = hex2rgb(state.paper);
+  const cols = state.colors.map(hex2rgb);
+  for(let p=0,j=0;p<W*H;p++,j+=4){
+    let rgb = paper;
+    for(let i=0;i<n;i++) if(state.masks[i] && state.masks[i][p]) rgb = cols[i];
+    d[j]=rgb[0];d[j+1]=rgb[1];d[j+2]=rgb[2];d[j+3]=255;
+  }
+  ctx.putImageData(id,0,0);
+}
+
+/* feathered composite — paint bleeds softly past each opening like real spray */
+function renderCompositeSpray(ctx){
+  const {W,H} = state, n = state.layerCount;
+  ctx.fillStyle = state.paper; ctx.fillRect(0,0,W,H);
+  const off=document.createElement("canvas"); off.width=W; off.height=H;
+  const octx=off.getContext("2d");
+  const b=Math.max(1.2, Math.min(W,H)/420);
+  for(let i=0;i<n;i++){
+    const mask=state.masks[i]; if(!mask) continue;
+    const id=octx.createImageData(W,H), d=id.data, [r,g,bl]=hex2rgb(state.colors[i]);
+    for(let p=0,j=0;p<mask.length;p++,j+=4){
+      if(mask[p]){ d[j]=r; d[j+1]=g; d[j+2]=bl; d[j+3]=255; }
+    }
+    octx.putImageData(id,0,0);
+    ctx.filter=`blur(${b.toFixed(2)}px)`; ctx.globalAlpha=.92; ctx.drawImage(off,0,0);
+    ctx.filter=`blur(${(b/3).toFixed(2)}px)`; ctx.globalAlpha=1; ctx.drawImage(off,0,0);
+    ctx.filter="none";
+  }
+}
+
+function paintBadges(){
+  for(let i=0;i<state.layerCount;i++){
+    const el=$("num"+i); if(el) el.style.background = state.colors[i];
+  }
+}
+
+/* ================= pipelines ================= */
+function fullRebuild(){
+  busy(true);
+  requestAnimationFrame(()=>{
+    preprocess();
+    if(state.pendingAuto){ autoThresholds(); state.pendingAuto=false; syncThresholdSliders(); }
+    for(let i=0;i<state.layerCount;i++){ buildMask(i); renderLayer(i); renderStats(i); }
+    renderComposite(); paintBadges();
+    busy(false);
+  });
+}
+function rebuildLayer(i){
+  busy(true);
+  requestAnimationFrame(()=>{
+    buildMask(i); renderLayer(i); renderStats(i); renderComposite();
+    busy(false);
+  });
+}
+function rebuildLayersUpTo(i){      // threshold i moved: earlier layers' tie hiding depends on it
+  busy(true);
+  requestAnimationFrame(()=>{
+    for(let k=0;k<=i;k++){ buildMask(k); renderLayer(k); renderStats(k); }
+    renderComposite();
+    busy(false);
+  });
+}
+function rerenderOnly(){
+  if(!state.img) return;
+  for(let i=0;i<state.layerCount;i++) renderLayer(i);
+  renderComposite(); paintBadges();
+}
+
+function rebuildMasks(){            // thresholds unchanged source: skip preprocess
+  busy(true);
+  requestAnimationFrame(()=>{
+    for(let i=0;i<state.layerCount;i++){ buildMask(i); renderLayer(i); renderStats(i); }
+    renderComposite();
+    busy(false);
+  });
+}
+
+const debounce = (fn,ms)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
+const debFull = debounce(fullRebuild,160);
+const debMasks = debounce(rebuildMasks,160);
+
+/* ================= wiring ================= */
+function bindGlobal(id,key,outId,fmt){
+  $(id).addEventListener("input", e=>{
+    state[key]=+e.target.value;
+    $(outId).textContent = fmt(e.target.value);
+    if(state.img) debFull();
+  });
+}
+bindGlobal("bright","bright","oBright",v=>v+"%");
+bindGlobal("contrast","contrast","oContrast",v=>v+"%");
+bindGlobal("smooth","smooth","oSmooth",v=>v);
+
+$("edgeSafe").addEventListener("change", e=>{
+  state.edgeSafe=e.target.checked;
+  if(state.img) debFull();
+});
+$("speck").addEventListener("input", e=>{
+  state.speck=+e.target.value;
+  $("oSpeck").textContent=e.target.value;
+  if(state.img) debMasks();
+});
+const fmtMM = v=>(+v).toFixed(2).replace(/\.?0+$/,"")+" mm";
+$("minFeat").addEventListener("input", e=>{
+  state.minFeature=+e.target.value;
+  $("oMinFeat").textContent=fmtMM(e.target.value);
+  if(state.img) debMasks();
+});
+$("layerCount").addEventListener("input", e=>{
+  $("oLayerCount").textContent=e.target.value;
+  setLayerCount(+e.target.value);
+});
+$("autoBtn").addEventListener("click", ()=>{
+  if(state.img){ state.pendingAuto=true; fullRebuild(); }
+});
+function setLayerCount(nv){
+  state.layerCount=nv;
+  state.thresholds=defaultThresholds(nv);
+  state.colors=defaultColors(nv);
+  ["masks","islands","bridgeMaps"].forEach(k=>state[k]=Array(nv).fill(null));
+  ["islandCounts","bridgeCounts","bridgeHidden","bridgeExposed"].forEach(k=>state[k]=Array(nv).fill(0));
+  state.manualOps=Array.from({length:nv},()=>[]);
+  edit.layer=-1;
+  buildLayerCards(); buildColorRows();
+  $("badgeN").textContent="×"+nv;
+  if(state.img){ state.pendingAuto=true; fullRebuild(); }
+}
+$("bridges").addEventListener("change", e=>{
+  state.bridges=e.target.checked;
+  $("bridgeWidthRow").style.display = state.bridges ? "" : "none";
+  if(state.img) rebuildMasks();
+});
+$("bridgeW").addEventListener("input", e=>{
+  state.bridgeWidth=+e.target.value;
+  $("oBridgeW").textContent=e.target.value;
+  if(state.img) debMasks();
+});
+$("svgW").addEventListener("input", e=>{
+  state.svgWidthMM=+e.target.value;
+  $("oSvgW").textContent=e.target.value+" mm";
+  if(state.img && state.minFeature>0) debMasks();   // min feature is sized in real mm
+});
+$("svgStyle").addEventListener("change", e=>{ state.svgStyle=e.target.value; });
+$("svgCorner").addEventListener("change", e=>{ state.svgCorner=e.target.value; });
+$("printMode").addEventListener("change", e=>{ state.printMode=e.target.value; });
+$("pageSize").addEventListener("change", e=>{ state.pageSize=e.target.value; });
+$("sprayPrev").addEventListener("change", e=>{
+  state.sprayPreview=e.target.checked;
+  if(state.img) renderComposite();
+});
+$("regMarks").addEventListener("change", e=>{
+  state.regMarks=e.target.checked;
+  if(state.img) rerenderOnly();
+});
+$("showIslands").addEventListener("change", e=>{
+  state.showIslands = e.target.checked;
+  rerenderOnly();
+});
+
+/* ----- project settings save / load ----- */
+const SAVE_KEYS=["layerCount","thresholds","colors","paper","bright","contrast","smooth","edgeSafe",
+  "speck","minFeature","bridges","bridgeWidth","showIslands","regMarks","svgWidthMM","svgStyle",
+  "svgCorner","printMode","pageSize","sprayPreview","manualOps"];
+$("saveSet").addEventListener("click", ()=>{
+  const o={app:"spray-stencil-maker",version:2};
+  for(const k of SAVE_KEYS) o[k]=state[k];
+  const url=URL.createObjectURL(new Blob([JSON.stringify(o,null,1)],{type:"application/json"}));
+  download("stencil-settings.json",url);
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+});
+$("loadSet").addEventListener("click", ()=>$("setFile").click());
+$("setFile").addEventListener("change", e=>{
+  const f=e.target.files[0];
+  e.target.value="";
+  if(!f) return;
+  f.text().then(t=>{
+    let o; try{ o=JSON.parse(t); }catch(_){ alert("Not a valid settings file."); return; }
+    if(o.app!=="spray-stencil-maker"){ alert("Not a stencil settings file."); return; }
+    applySettings(o);
+  });
+});
+function applySettings(o){
+  const nv=Math.min(6,Math.max(2,Math.round(o.layerCount||3)));
+  state.layerCount=nv;
+  for(const k of SAVE_KEYS){ if(k!=="layerCount" && o[k]!==undefined) state[k]=o[k]; }
+  if(!Array.isArray(state.thresholds)||state.thresholds.length!==nv) state.thresholds=defaultThresholds(nv);
+  if(!Array.isArray(state.colors)||state.colors.length!==nv) state.colors=defaultColors(nv);
+  if(!Array.isArray(state.manualOps)||state.manualOps.length!==nv) state.manualOps=Array.from({length:nv},()=>[]);
+  ["masks","islands","bridgeMaps"].forEach(k=>state[k]=Array(nv).fill(null));
+  ["islandCounts","bridgeCounts","bridgeHidden","bridgeExposed"].forEach(k=>state[k]=Array(nv).fill(0));
+  edit.layer=-1;
+  buildLayerCards(); buildColorRows(); syncControls();
+  state.pendingAuto=false;
+  if(state.img) fullRebuild();
+}
+function syncControls(){
+  $("layerCount").value=state.layerCount; $("oLayerCount").textContent=state.layerCount;
+  $("badgeN").textContent="×"+state.layerCount;
+  $("bright").value=state.bright;     $("oBright").textContent=state.bright+"%";
+  $("contrast").value=state.contrast; $("oContrast").textContent=state.contrast+"%";
+  $("smooth").value=state.smooth;     $("oSmooth").textContent=state.smooth;
+  $("edgeSafe").checked=state.edgeSafe;
+  $("speck").value=state.speck;       $("oSpeck").textContent=state.speck;
+  $("minFeat").value=state.minFeature; $("oMinFeat").textContent=fmtMM(state.minFeature);
+  $("bridges").checked=state.bridges;
+  $("bridgeWidthRow").style.display=state.bridges?"":"none";
+  $("bridgeW").value=state.bridgeWidth; $("oBridgeW").textContent=state.bridgeWidth;
+  $("showIslands").checked=state.showIslands;
+  $("regMarks").checked=state.regMarks;
+  $("svgW").value=state.svgWidthMM;   $("oSvgW").textContent=state.svgWidthMM+" mm";
+  $("svgStyle").value=state.svgStyle;
+  $("svgCorner").value=state.svgCorner;
+  $("printMode").value=state.printMode;
+  $("pageSize").value=state.pageSize;
+  $("sprayPrev").checked=state.sprayPreview;
+}
+
+/* ================= vector export (laser / Cricut) ================= */
+/* trace pixel boundaries into closed loops: clockwise around cut areas,
+   counter-clockwise around holes — even-odd fill handles both */
+function traceMask(mask,W,H){
+  const KW=W+1;
+  const edges=new Map();
+  const addE=(k1,k2)=>{ let a=edges.get(k1); if(!a){a=[];edges.set(k1,a);} a.push(k2); };
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const p=y*W+x;
+      if(!mask[p]) continue;
+      if(y===0  ||!mask[p-W]) addE(y*KW+x,        y*KW+x+1);
+      if(x===W-1||!mask[p+1]) addE(y*KW+x+1,     (y+1)*KW+x+1);
+      if(y===H-1||!mask[p+W]) addE((y+1)*KW+x+1, (y+1)*KW+x);
+      if(x===0  ||!mask[p-1]) addE((y+1)*KW+x,    y*KW+x);
+    }
+  }
+  const loops=[];
+  for(const [start,arr0] of edges){
+    while(arr0.length){
+      const loop=[start];
+      let prev=start, cur=arr0.pop();
+      while(cur!==start){
+        loop.push(cur);
+        const a=edges.get(cur);
+        let nxt;
+        if(a.length===1) nxt=a.pop();
+        else{
+          // ambiguous corner: prefer the right turn to keep regions separate
+          const dx=(cur%KW)-(prev%KW), dy=((cur/KW)|0)-((prev/KW)|0);
+          const rx=-dy, ry=dx;
+          let pick=0;
+          for(let k=0;k<a.length;k++){
+            const cdx=(a[k]%KW)-(cur%KW), cdy=((a[k]/KW)|0)-((cur/KW)|0);
+            if(cdx===rx && cdy===ry){ pick=k; break; }
+          }
+          nxt=a.splice(pick,1)[0];
+        }
+        prev=cur; cur=nxt;
+      }
+      loops.push(loop.map(k=>[k%KW,(k/KW)|0]));
+    }
+  }
+  return loops;
+}
+
+function mergeCollinear(pts){
+  const out=[];
+  for(const c of pts){
+    while(out.length>=2){
+      const a=out[out.length-2], b=out[out.length-1];
+      if((b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])===0) out.pop();
+      else break;
+    }
+    out.push(c);
+  }
+  return out;
+}
+
+function rdp(pts,eps){
+  if(pts.length<3) return pts;
+  const keep=new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1;
+  const stk=[[0,pts.length-1]];
+  while(stk.length){
+    const [i,j]=stk.pop();
+    const [x1,y1]=pts[i],[x2,y2]=pts[j];
+    const dx=x2-x1, dy=y2-y1;
+    const len=Math.hypot(dx,dy)||1e-9;
+    let maxD=-1, idx=-1;
+    for(let k=i+1;k<j;k++){
+      const d=Math.abs(dx*(y1-pts[k][1])-dy*(x1-pts[k][0]))/len;
+      if(d>maxD){ maxD=d; idx=k; }
+    }
+    if(maxD>eps){ keep[idx]=1; stk.push([i,idx],[idx,j]); }
+  }
+  return pts.filter((_,k)=>keep[k]);
+}
+
+function maskToSVG(i){
+  const {W,H}=state;
+  let mask=state.masks[i];
+  if(state.regMarks) mask=stampMarks(new Uint8Array(mask));
+  const loops=traceMask(mask,W,H);
+  let d="";
+  for(const loop of loops){
+    const s=rdp(mergeCollinear(loop),1.2);
+    if(s.length<3) continue;
+    // ≤4 points = registration marks / true rectangles — keep those crisp
+    d += (state.svgCorner==="smooth" && s.length>4)
+      ? smoothLoop(s)
+      : "M"+s.map(p=>p[0]+" "+p[1]).join("L")+"Z";
+  }
+  const wmm=state.svgWidthMM, hmm=+(wmm*H/W).toFixed(1);
+  const shape = state.svgStyle==="outline"
+    ? `<path d="${d}" fill="none" stroke="#ff0000" stroke-width="0.25"/>`
+    : `<path d="${d}" fill="#000000" fill-rule="evenodd" stroke="none"/>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n`+
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${wmm}mm" height="${hmm}mm" viewBox="0 0 ${W} ${H}">\n`+
+    `<title>Stencil layer ${i+1} — ${META[i].name} (black = cut openings)</title>\n${shape}\n</svg>`;
+}
+
+function downloadSVG(i){
+  const blob=new Blob([maskToSVG(i)],{type:"image/svg+xml"});
+  const url=URL.createObjectURL(blob);
+  download(`stencil-layer-${i+1}-${META[i].name.toLowerCase().replace(/\s+/g,"-")}.svg`,url);
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+
+/* ================= export ================= */
+function cleanLayerDataURL(i){
+  const c = document.createElement("canvas");
+  renderLayer(i, true, c);
+  return c.toDataURL("image/png");
+}
+function download(name,url){
+  const a=document.createElement("a"); a.href=url; a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function printLayers(indices){
+  const area = $("printArea");
+  area.innerHTML = "";
+  if(state.printMode==="actual") buildTilePages(indices,area);
+  else indices.forEach(i=>{
+    const pg = document.createElement("div");
+    pg.className="ppage";
+    const img = document.createElement("img");
+    img.src = cleanLayerDataURL(i);
+    const cap = document.createElement("div");
+    cap.className="cap";
+    cap.textContent = `Layer ${i+1} — ${META[i].name} — cut out the black areas`;
+    pg.append(img,cap);
+    area.appendChild(pg);
+  });
+  const imgs=[...area.querySelectorAll("img")];
+  Promise.all(imgs.map(im=>im.decode().catch(()=>{}))).then(()=>window.print());
+}
+
+/* actual-size printing: slice each layer into page tiles at true mm scale,
+   10 mm overlap with dashed glue lines for joining the sheets */
+function buildTilePages(indices,area){
+  const {W,H}=state;
+  const wmm=state.svgWidthMM, hmm=wmm*H/W;
+  const pg = state.pageSize==="letter" ? {w:216,h:279} : {w:210,h:297};
+  const OV=10;
+  const L=tileLayout(wmm,hmm,pg.w,pg.h,12,OV);
+  const pxPerMM=W/wmm;
+  indices.forEach(i=>{
+    const full=document.createElement("canvas");
+    renderLayer(i,true,full);
+    for(const t of L.tiles){
+      const sx=Math.round(t.x0*pxPerMM), sy=Math.round(t.y0*pxPerMM);
+      const sw=Math.min(Math.round(t.w*pxPerMM), W-sx);
+      const sh=Math.min(Math.round(t.h*pxPerMM), H-sy);
+      if(sw<1||sh<1) continue;
+      const tc=document.createElement("canvas");
+      tc.width=sw; tc.height=sh;
+      const ctx=tc.getContext("2d");
+      ctx.fillStyle="#fff"; ctx.fillRect(0,0,sw,sh);
+      ctx.drawImage(full,sx,sy,sw,sh,0,0,sw,sh);
+      ctx.strokeStyle="#888"; ctx.setLineDash([12,10]); ctx.lineWidth=2;
+      const ovpx=OV*pxPerMM;
+      if(t.col>0){ ctx.beginPath(); ctx.moveTo(ovpx,0); ctx.lineTo(ovpx,sh); ctx.stroke(); }
+      if(t.row>0){ ctx.beginPath(); ctx.moveTo(0,ovpx); ctx.lineTo(sw,ovpx); ctx.stroke(); }
+      const div=document.createElement("div"); div.className="ptile";
+      const img=document.createElement("img");
+      img.src=tc.toDataURL("image/png");
+      img.style.width=(sw/pxPerMM).toFixed(1)+"mm";
+      const cap=document.createElement("div"); cap.className="cap";
+      cap.textContent = L.tiles.length>1
+        ? `Layer ${i+1} ${META[i].name} — tile ${t.col+1}×${t.row+1} of ${L.cols}×${L.rows} — print at 100% — dashed = glue edge`
+        : `Layer ${i+1} ${META[i].name} — print at 100% scale`;
+      div.append(img,cap);
+      area.appendChild(div);
+    }
+  });
+}
+
+document.addEventListener("click", e=>{
+  const dl = e.target.closest("[data-dl]");
+  if(dl){ const i=+dl.dataset.dl; download(`stencil-layer-${i+1}.png`, cleanLayerDataURL(i)); return; }
+  const sv = e.target.closest("[data-svg]");
+  if(sv){ downloadSVG(+sv.dataset.svg); return; }
+  const pr = e.target.closest("[data-pr]");
+  if(pr){ printLayers([+pr.dataset.pr]); return; }
+  const ed = e.target.closest("[data-edit]");
+  if(ed){ const i=+ed.dataset.edit; setEditLayer(edit.layer===i?-1:i); return; }
+  const tl = e.target.closest("[data-tool]");
+  if(tl){
+    edit.tool=tl.dataset.tool;
+    document.querySelectorAll("[data-tool]").forEach(b=>b.classList.toggle("on",b.dataset.tool===edit.tool));
+    return;
+  }
+  const cl = e.target.closest("[data-clear]");
+  if(cl){ const i=+cl.dataset.clear; state.manualOps[i]=[]; rebuildLayer(i); return; }
+});
+$("dlAllSvg").addEventListener("click", ()=>{
+  allLayers().forEach(i=>setTimeout(()=>downloadSVG(i), i*350));
+});
+$("printAll").addEventListener("click", ()=>printLayers(allLayers()));
+$("dlAll").addEventListener("click", ()=>{
+  allLayers().forEach(i=>setTimeout(()=>download(`stencil-layer-${i+1}.png`, cleanLayerDataURL(i)), i*350));
+});
+
+/* ================= boot ================= */
+buildLayerCards();
+buildColorRows();
+
+/* console / test handle */
+window.__app={state, setImage, setLayerCount, rebuildLayer, fullRebuild, renderComposite, maskToSVG, buildTilePages};
+</script>
+</body>
+</html>
